@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📻 Akashvani & Live Radio Hub</title>
+  <meta name="description" content="Free high-speed All India Radio (Akashvani), TV audio streams, and web radio player with keypad navigation and direct MP3 streams.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-cyber">
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="pulse-indicator"></div>
+        <div class="brand-text">
+          <h1>AKASHVANI <span class="highlight">RADIO</span></h1>
+          <p class="tagline">All India Radio & Live Stream Hub • Ultra-Low Bandwidth MP3</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn-icon" title="Switch Theme (Retro CRT / Modern)">
+          <span class="theme-icon">⚡</span> <span class="btn-label">Theme</span>
+        </button>
+        <a href="/playlist.m3u" class="btn-secondary" title="Download M3U Playlist for VLC / Kodi / IPTV">
+          <span>📥 M3U Playlist</span>
+        </a>
+        <button id="infoBtn" class="btn-secondary" title="Stream Info & ESP32 / VLC Setup">
+          <span>ℹ️ Connect</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Visualizer & Keypad Control Banner -->
+    <section class="visualizer-banner">
+      <div class="now-playing-hud">
+        <div class="hud-status">
+          <span class="hud-badge" id="hudCategory">AIR</span>
+          <span class="hud-state" id="hudState">NATIONAL</span>
+        </div>
+        <h2 id="hudTitle" class="hud-title">Select a Station to Play</h2>
+        <div class="hud-meta">
+          <span id="hudLanguage">Hindi / Regional</span> • 
+          <span id="hudBitrate">96 kbps MP3</span> • 
+          <span id="hudStatusText">Ready</span>
+        </div>
+      </div>
+
+      <!-- Frequency Visualizer -->
+      <div class="visualizer-canvas-wrap">
+        <canvas id="visualizerCanvas"></canvas>
+      </div>
+
+      <!-- Quick Keypad Virtual Pad -->
+      <div class="keypad-dock">
+        <div class="keypad-title">NUMPAD SHORTCUTS</div>
+        <div class="keypad-grid">
+          <button class="key-btn" data-key="2" title="Previous Station">▲ 2 (Prev)</button>
+          <button class="key-btn" data-key="5" title="Toggle Play / Pause">⏯ 5 (Play)</button>
+          <button class="key-btn" data-key="8" title="Next Station">▼ 8 (Next)</button>
+          <button class="key-btn" data-key="0" title="Mute / Clear">🔇 0 (Mute)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filters & Navigation Tabs -->
+    <section class="controls-bar">
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="air">📻 AIR Akashvani (<span id="countAir">0</span>)</button>
+        <button class="tab-btn" data-tab="tv">📺 TV Audio (<span id="countTv">0</span>)</button>
+        <button class="tab-btn" data-tab="others">🌐 Web Radios (<span id="countOthers">0</span>)</button>
+        <button class="tab-btn" data-tab="fav">⭐ Favorites (<span id="countFav">0</span>)</button>
+      </div>
+
+      <div class="search-filter-wrap">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by name, language (Tamil, Hindi, Malayalam...), state..." autocomplete="off">
+          <button id="clearSearchBtn" class="clear-btn">&times;</button>
+        </div>
+
+        <select id="stateFilter" class="filter-select">
+          <option value="">All States / Regions</option>
+        </select>
+
+        <select id="langFilter" class="filter-select">
+          <option value="">All Languages</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Station Grid -->
+    <main class="stations-section">
+      <div id="stationsGrid" class="stations-grid">
+        <!-- Rendered dynamically -->
+      </div>
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-icon">📻</div>
+        <h3>No stations found</h3>
+        <p>Try searching for a different name, language, or state filter.</p>
+      </div>
+    </main>
+
+    <!-- Persistent Bottom Player Bar -->
+    <footer class="player-bar">
+      <div class="player-info">
+        <div class="player-live-dot" id="liveDot"></div>
+        <div class="player-titles">
+          <div class="player-current-name" id="playerStationName">No Station Selected</div>
+          <div class="player-current-sub" id="playerStationSub">Press a station card or Numpad '5' to start</div>
+        </div>
+      </div>
+
+      <div class="player-controls">
+        <button id="prevBtn" class="control-btn" title="Previous Station (Key 2)">⏮</button>
+        <button id="playPauseBtn" class="control-btn play-main" title="Play / Pause (Key 5)">▶</button>
+        <button id="nextBtn" class="control-btn" title="Next Station (Key 8)">⏭</button>
+      </div>
+
+      <div class="player-extra">
+        <div class="volume-container">
+          <span id="volumeIcon" class="volume-icon">🔊</span>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1">
+        </div>
+        <button id="favBtn" class="btn-extra" title="Add to Favorites">⭐</button>
+        <button id="copyStreamBtn" class="btn-extra" title="Copy MP3 Direct Stream URL for VLC / ESP32">🔗 Copy MP3</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Audio Element -->
+  <audio id="audioElement" preload="none"></audio>
+
+  <!-- Connect / Info Modal -->
+  <div id="infoModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📻 Direct Hardware & Media Player Integration</h3>
+        <button id="closeModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>This server transcodes and multicasts streams as continuous <strong>standard HTTP MP3 chunks</strong>, making it universally compatible with IoT devices and media applications with zero buffering lag.</p>
+        
+        <h4>1. VLC / Media Player / IPTV Playlist</h4>
+        <div class="code-box">
+          <code>Open Network Stream: <span id="sampleM3uUrl">http://localhost:8000/playlist.m3u</span></code>
+        </div>
+
+        <h4>2. ESP32 / Arduino Audio Player Code Snippet</h4>
+        <div class="code-box">
+          <pre><code>#include "Audio.h"
+Audio audio;
+
+void setup() {
+  WiFi.begin("YOUR_SSID", "YOUR_PASSWORD");
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  
+  // Connect to your station MP3 endpoint directly!
+  audio.connecttohost("http://YOUR_SERVER_URL/stream/vividh_bharati");
+}
+
+void loop() {
+  audio.loop();
+}</code></pre>
+        </div>
+
+        <h4>3. Direct MP3 Stream URL</h4>
+        <div class="code-box">
+          <code><span id="activeStreamUrl">Select a station to view its direct MP3 URL</span></code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden">Stream URL copied to clipboard!</div>
+
+  <script src="app.js"></script>
+</body>
+</html>

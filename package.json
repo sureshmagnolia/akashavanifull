@@ -1,0 +1,26 @@
+{
+  "name": "akashvani-radio-hub",
+  "version": "2.0.0",
+  "description": "Ultra-low bandwidth All India Radio (Akashvani) & Live Streams MP3 Hub with high-concurrency stream multiplexing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "akashvani",
+    "all-india-radio",
+    "radio",
+    "m3u8",
+    "mp3",
+    "esp32",
+    "hls",
+    "ffmpeg",
+    "streaming"
+  ],
+  "author": "Suresh Magnolia",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

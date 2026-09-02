@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: akashvani-radio-hub
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: BITRATE
+        value: 96k
