@@ -38,6 +38,11 @@ app.use((req, res, next) => {
 // Serve static frontend assets
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Root route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // 1. Stations List API
 app.get('/api/stations', (req, res) => {
   const { category, language, state, search } = req.query;
