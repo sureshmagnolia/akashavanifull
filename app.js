@@ -1,75 +1,77 @@
-// Akashvani & Web Radio Hub - Client Application with Hybrid HLS Engine
+// Akashvani & Live Radio Hub - Modern Studio Client
 document.addEventListener('DOMContentLoaded', () => {
-  // State
+  // Application State
   let stations = [];
-  let currentStationIndex = -1;
+  let currentStation = null;
   let currentFilteredStations = [];
   let activeTab = 'air';
+  let activeLangChip = '';
   let favorites = new Set(JSON.parse(localStorage.getItem('akashvani_favs') || '[]'));
   let isPlaying = false;
-  let streamMode = localStorage.getItem('akashvani_mode') || 'direct'; // 'direct' (0% server load) or 'proxy' (MP3 server transcode)
-
-  // HLS Engine Instance
   let hls = null;
 
   // DOM Elements
   const audio = document.getElementById('audioElement');
   const stationsGrid = document.getElementById('stationsGrid');
   const emptyState = document.getElementById('emptyState');
+  const resetFilterBtn = document.getElementById('resetFilterBtn');
   const searchInput = document.getElementById('searchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const stateFilter = document.getElementById('stateFilter');
   const langFilter = document.getElementById('langFilter');
-  const tabBtns = document.querySelectorAll('.tab-btn');
+  const languageChips = document.getElementById('languageChips');
+  const navItems = document.querySelectorAll('.nav-item');
 
-  // Player Bar Elements
+  // Hero Card Elements
+  const heroPlayerCard = document.querySelector('.hero-player-card');
+  const heroTitle = document.getElementById('heroTitle');
+  const heroSubtitle = document.getElementById('heroSubtitle');
+  const heroCategory = document.getElementById('heroCategory');
+  const heroState = document.getElementById('heroState');
+  const sectionTitle = document.getElementById('sectionTitle');
+  const sectionSubtitle = document.getElementById('sectionSubtitle');
+
+  // Bottom Player Elements
   const playPauseBtn = document.getElementById('playPauseBtn');
+  const playSvg = playPauseBtn.querySelector('.play-svg');
+  const pauseSvg = playPauseBtn.querySelector('.pause-svg');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const playerStationName = document.getElementById('playerStationName');
   const playerStationSub = document.getElementById('playerStationSub');
-  const liveDot = document.getElementById('liveDot');
+  const statusDot = document.getElementById('statusDot');
+  const playerStatusLabel = document.getElementById('playerStatusLabel');
   const volumeSlider = document.getElementById('volumeSlider');
-  const volumeIcon = document.getElementById('volumeIcon');
+  const muteBtn = document.getElementById('muteBtn');
   const favBtn = document.getElementById('favBtn');
   const copyStreamBtn = document.getElementById('copyStreamBtn');
 
-  // HUD Elements
-  const hudCategory = document.getElementById('hudCategory');
-  const hudState = document.getElementById('hudState');
-  const hudTitle = document.getElementById('hudTitle');
-  const hudLanguage = document.getElementById('hudLanguage');
-  const hudStatusText = document.getElementById('hudStatusText');
-  const hudEngine = document.getElementById('hudEngine');
-
-  // Counts
+  // Tab Counters
   const countAir = document.getElementById('countAir');
   const countTv = document.getElementById('countTv');
   const countOthers = document.getElementById('countOthers');
   const countFav = document.getElementById('countFav');
 
-  // Modal & Theme & Mode
+  // Modal Elements
   const infoBtn = document.getElementById('infoBtn');
   const infoModal = document.getElementById('infoModal');
   const closeModalBtn = document.getElementById('closeModalBtn');
-  const themeToggleBtn = document.getElementById('themeToggleBtn');
-  const modeToggleBtn = document.getElementById('modeToggleBtn');
-  const modeIcon = document.getElementById('modeIcon');
-  const modeText = document.getElementById('modeText');
+  const downloadM3uBtn = document.getElementById('downloadM3uBtn');
+  const m3uFullUrl = document.getElementById('m3uFullUrl');
+  const activeStationDirectUrl = document.getElementById('activeStationDirectUrl');
+  const esp32Url = document.getElementById('esp32Url');
   const toast = document.getElementById('toast');
-  const activeStreamUrl = document.getElementById('activeStreamUrl');
-  const sampleM3uUrl = document.getElementById('sampleM3uUrl');
 
-  sampleM3uUrl.textContent = `${window.location.origin}/playlist.m3u`;
+  m3uFullUrl.textContent = `${window.location.origin}/playlist.m3u`;
 
   // Visualizer Setup
   const canvas = document.getElementById('visualizerCanvas');
   const ctx = canvas.getContext('2d');
   let audioCtx, analyser, source, dataArray;
-  let visualizerInitialized = false;
+  let visualizerInit = false;
 
   function initVisualizer() {
-    if (visualizerInitialized) return;
+    if (visualizerInit) return;
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
@@ -78,85 +80,66 @@ document.addEventListener('DOMContentLoaded', () => {
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
       dataArray = new Uint8Array(analyser.frequencyBinCount);
-      visualizerInitialized = true;
+      visualizerInit = true;
       drawVisualizer();
     } catch (e) {
-      console.warn('Web Audio visualizer running in fallback canvas mode');
+      // Fallback animation
     }
   }
 
   function drawVisualizer() {
     requestAnimationFrame(drawVisualizer);
-    if (!visualizerInitialized || !analyser) {
-      drawFallbackVisualizer();
+    if (!visualizerInit || !analyser) {
+      drawFallback();
       return;
     }
 
     analyser.getByteFrequencyData(dataArray);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const barWidth = (canvas.width / analyser.frequencyBinCount) * 1.5;
+    const barWidth = (canvas.width / analyser.frequencyBinCount) * 1.6;
     let x = 0;
 
     for (let i = 0; i < analyser.frequencyBinCount; i++) {
       const barHeight = (dataArray[i] / 255) * canvas.height;
-      const isCyber = document.body.classList.contains('theme-cyber');
-      ctx.fillStyle = isCyber ? `rgb(0, ${Math.min(255, 150 + dataArray[i])}, 100)` : `rgb(124, 77, 255)`;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+      const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+      gradient.addColorStop(0, '#6366f1');
+      gradient.addColorStop(1, '#06b6d4');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, canvas.height - barHeight, barWidth - 3, barHeight);
       x += barWidth;
     }
   }
 
-  function drawFallbackVisualizer() {
+  function drawFallback() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const bars = 24;
+    const bars = 18;
     const barWidth = canvas.width / bars;
-    const time = Date.now() / 150;
+    const time = Date.now() / 180;
 
     for (let i = 0; i < bars; i++) {
-      const height = isPlaying ? Math.abs(Math.sin(time + i * 0.4)) * (canvas.height * 0.7) + 5 : 3;
-      const isCyber = document.body.classList.contains('theme-cyber');
-      ctx.fillStyle = isCyber ? '#00ff66' : '#7c4dff';
+      const height = isPlaying ? Math.abs(Math.sin(time + i * 0.45)) * (canvas.height * 0.75) + 6 : 4;
+      const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+      gradient.addColorStop(0, '#6366f1');
+      gradient.addColorStop(1, '#06b6d4');
+      ctx.fillStyle = gradient;
       ctx.fillRect(i * barWidth, canvas.height - height, barWidth - 3, height);
     }
   }
 
   function resizeCanvas() {
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
+    if (canvas && canvas.parentElement) {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
   }
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // Mode Toggle Handler
-  function updateModeUI() {
-    if (streamMode === 'direct') {
-      modeIcon.textContent = '⚡';
-      modeText.textContent = 'Direct Mode (0% Load)';
-      hudEngine.textContent = 'DIRECT HLS';
-      modeToggleBtn.classList.add('active-mode');
-    } else {
-      modeIcon.textContent = '📻';
-      modeText.textContent = 'Server MP3 Hub';
-      hudEngine.textContent = 'SERVER MP3';
-      modeToggleBtn.classList.remove('active-mode');
-    }
-    localStorage.setItem('akashvani_mode', streamMode);
-  }
-
-  modeToggleBtn.addEventListener('click', () => {
-    streamMode = streamMode === 'direct' ? 'proxy' : 'direct';
-    updateModeUI();
-    showToast(`Switched to: ${streamMode === 'direct' ? '⚡ Direct Client Mode (0% Server Load)' : '📻 Server MP3 Hub Mode'}`);
-    if (currentStationIndex !== -1) {
-      playStation(stations[currentStationIndex]);
-    }
-  });
-
-  // 1. Fetch Stations
+  // 1. Data Fetching
   async function loadStations() {
     try {
-      hudStatusText.textContent = 'Loading stations...';
+      playerStatusLabel.textContent = 'Loading...';
       let data;
       try {
         const res = await fetch('/api/stations');
@@ -172,38 +155,14 @@ document.addEventListener('DOMContentLoaded', () => {
       populateFilters();
       updateCounts();
       renderStations();
-      updateModeUI();
-      hudStatusText.textContent = 'Ready';
+      playerStatusLabel.textContent = 'Ready';
     } catch (err) {
       console.error('Error loading stations:', err);
-      hudStatusText.textContent = 'Error loading stations';
+      playerStatusLabel.textContent = 'Offline';
     }
   }
 
-  // Handle M3U download statically or dynamically
-  const m3uDownloadLink = document.querySelector('a[href="/playlist.m3u"]');
-  if (m3uDownloadLink) {
-    m3uDownloadLink.addEventListener('click', (e) => {
-      if (window.location.protocol.startsWith('http')) {
-        let m3u = '#EXTM3U\n';
-        stations.forEach(s => {
-          const group = s.category === 'air' ? 'All India Radio' : (s.category === 'tv' ? 'Live TV Audio' : 'Web Radio');
-          m3u += `#EXTINF:-1 tvg-id="${s.id}" tvg-name="${s.name}" group-title="${group}" radio="true",${s.name} [${s.language || s.state || ''}]\n`;
-          m3u += `${s.stream_url}\n`;
-        });
-        const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'akashvani_radio.m3u';
-        a.click();
-        URL.revokeObjectURL(url);
-        e.preventDefault();
-      }
-    });
-  }
-
-  // 2. Populate State & Language Dropdowns
+  // 2. Populate Dropdowns
   function populateFilters() {
     const states = new Set();
     const languages = new Set();
@@ -230,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 3. Update Tab Counts
+  // 3. Tab & Count Updates
   function updateCounts() {
     countAir.textContent = stations.filter(s => s.category === 'air').length;
     countTv.textContent = stations.filter(s => s.category === 'tv').length;
@@ -238,11 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
     countFav.textContent = favorites.size;
   }
 
-  // 4. Render Station Cards
+  // 4. Render Grid Cards
   function renderStations() {
     const query = searchInput.value.trim().toLowerCase();
     const selectedState = stateFilter.value;
-    const selectedLang = langFilter.value;
+    const selectedLang = langFilter.value || activeLangChip;
 
     currentFilteredStations = stations.filter(s => {
       if (activeTab === 'fav') {
@@ -264,6 +223,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return true;
     });
 
+    // Update Section Title & Subtitle
+    const tabNames = { air: 'All India Radio Stations', tv: 'Live TV Audio Channels', others: 'Web & Classical Radios', fav: 'Saved Favorite Stations' };
+    sectionTitle.textContent = tabNames[activeTab] || 'Radio Stations';
+    sectionSubtitle.textContent = `Showing ${currentFilteredStations.length} ${currentFilteredStations.length === 1 ? 'station' : 'stations'}`;
+
     stationsGrid.innerHTML = '';
 
     if (currentFilteredStations.length === 0) {
@@ -274,32 +238,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentFilteredStations.forEach((station) => {
       const isFav = favorites.has(station.id);
-      const isCurrent = currentStationIndex !== -1 && stations[currentStationIndex]?.id === station.id;
+      const isCurrent = currentStation && currentStation.id === station.id;
 
       const card = document.createElement('div');
-      card.className = `station-card ${isCurrent && isPlaying ? 'active-playing' : ''}`;
+      card.className = `station-card ${isCurrent && isPlaying ? 'active-card' : ''}`;
+      
+      const avatarLetter = station.name.charAt(0).toUpperCase();
+
       card.innerHTML = `
-        <div class="card-top">
-          <div class="card-name">${station.name}</div>
-          <button class="card-fav-btn ${isFav ? 'is-fav' : ''}" title="Favorite">★</button>
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-avatar">${avatarLetter}</div>
+            <div class="card-title">${station.name}</div>
+          </div>
+          <button class="card-fav-btn ${isFav ? 'is-fav' : ''}" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </button>
         </div>
-        <div class="card-mid">
-          <span class="tag tag-state">${station.state || 'NATIONAL'}</span>
-          <span class="tag">${station.language || 'General'}</span>
+        <div class="card-tags">
+          <span class="tag-badge state">${station.state || 'NATIONAL'}</span>
+          <span class="tag-badge">${station.language || 'General'}</span>
         </div>
-        <div class="card-bottom">
-          <span class="card-play-trigger">${isCurrent && isPlaying ? '❚❚ Playing' : '▶ Play Now'}</span>
-          <button class="card-copy-btn" title="Copy MP3 Stream URL">🔗 MP3</button>
+        <div class="card-footer">
+          <div class="play-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              ${isCurrent && isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>'}
+            </svg>
+            ${isCurrent && isPlaying ? 'Playing' : 'Listen Now'}
+          </div>
+          <button class="btn-inline-copy" title="Copy Stream URL">Copy URL</button>
         </div>
       `;
 
       card.addEventListener('click', (e) => {
-        if (e.target.classList.contains('card-fav-btn')) {
+        if (e.target.closest('.card-fav-btn')) {
           toggleFavorite(station.id);
           return;
         }
-        if (e.target.classList.contains('card-copy-btn')) {
-          copyStreamUrl(station.id);
+        if (e.target.closest('.btn-inline-copy')) {
+          copyStreamUrl(station);
           return;
         }
         playStation(station);
@@ -309,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 5. Playback Engine (Smart Hybrid HLS & MP3)
+  // 5. Playback Engine
   function playStation(station) {
     if (!station) return;
     initVisualizer();
@@ -317,87 +296,86 @@ document.addEventListener('DOMContentLoaded', () => {
       audioCtx.resume();
     }
 
-    currentStationIndex = stations.findIndex(s => s.id === station.id);
+    currentStation = station;
 
-    // Update HUD
-    hudTitle.textContent = station.name;
-    hudCategory.textContent = station.category.toUpperCase();
-    hudState.textContent = station.state || 'NATIONAL';
-    hudLanguage.textContent = station.language || 'Standard';
-    hudStatusText.textContent = 'Connecting...';
+    // Update Hero Card
+    heroTitle.textContent = station.name;
+    heroSubtitle.textContent = `Broadcasting from ${station.state || 'India'} in ${station.language || 'Standard'}.`;
+    heroCategory.textContent = station.category.toUpperCase();
+    heroState.textContent = station.state || 'NATIONAL';
+    heroPlayerCard.classList.add('playing');
 
-    // Update Player Bar
+    // Update Bottom Player
     playerStationName.textContent = station.name;
-    playerStationSub.textContent = `${station.state || 'NATIONAL'} • ${station.language || 'Standard'}`;
-    activeStreamUrl.textContent = `${window.location.origin}/stream/${station.id}`;
+    playerStationSub.textContent = `${station.state || 'National'} • ${station.language || 'Standard'}`;
+    playerStatusLabel.textContent = 'Connecting...';
+    activeStationDirectUrl.textContent = station.stream_url;
+    esp32Url.textContent = `${window.location.origin}/stream/${station.id}`;
 
-    // Clean up existing HLS engine instance
+    // Clean up previous HLS instance
     if (hls) {
       hls.destroy();
       hls = null;
     }
 
-    const isDirectHls = streamMode === 'direct' && station.stream_url && (station.stream_url.includes('.m3u8') || station.stream_url.startsWith('http'));
-
-    if (isDirectHls) {
-      // ⚡ DIRECT CLIENT MODE (0% Server Load)
-      if (window.Hls && Hls.isSupported() && station.stream_url.includes('.m3u8')) {
-        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-        hls.loadSource(station.stream_url);
-        hls.attachMedia(audio);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          audio.play().then(onPlaySuccess).catch(onPlayError);
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            console.warn('Direct HLS fatal error, seamlessly falling back to Server MP3 Hub:', data);
-            fallbackToProxy(station);
-          }
-        });
-      } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native Safari / iOS HLS
-        audio.src = station.stream_url;
-        audio.play().then(onPlaySuccess).catch(() => fallbackToProxy(station));
-      } else {
-        fallbackToProxy(station);
-      }
+    // Direct HLS engine with seamless fallback
+    if (window.Hls && Hls.isSupported() && station.stream_url && station.stream_url.includes('.m3u8')) {
+      hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      hls.loadSource(station.stream_url);
+      hls.attachMedia(audio);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        audio.play().then(onPlaySuccess).catch(onPlayError);
+      });
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          fallbackToAudioSrc(station);
+        }
+      });
+    } else if (audio.canPlayType('application/vnd.apple.mpegurl') && station.stream_url) {
+      audio.src = station.stream_url;
+      audio.play().then(onPlaySuccess).catch(() => fallbackToAudioSrc(station));
     } else {
-      // 📻 SERVER MP3 HUB MODE
-      fallbackToProxy(station);
+      fallbackToAudioSrc(station);
     }
+
+    updateFavButton();
+    renderStations();
   }
 
-  function fallbackToProxy(station) {
+  function fallbackToAudioSrc(station) {
     audio.src = `/stream/${station.id}`;
     audio.play().then(onPlaySuccess).catch(onPlayError);
   }
 
   function onPlaySuccess() {
     isPlaying = true;
-    playPauseBtn.textContent = '❚❚';
-    liveDot.classList.add('playing');
-    hudStatusText.textContent = 'LIVE NOW';
-    updateFavButton();
+    playSvg.classList.add('hidden');
+    pauseSvg.classList.remove('hidden');
+    statusDot.classList.add('active');
+    playerStatusLabel.textContent = 'Live Broadcast';
+    heroPlayerCard.classList.add('playing');
     renderStations();
   }
 
   function onPlayError(err) {
-    console.warn('Playback error:', err);
-    hudStatusText.textContent = 'Connecting...';
+    console.warn('Play error:', err);
+    playerStatusLabel.textContent = 'Retrying...';
   }
 
   function togglePlay() {
-    if (!audio.src && !hls) {
-      if (stations.length > 0) playStation(stations[0]);
+    if (!currentStation) {
+      if (currentFilteredStations.length > 0) playStation(currentFilteredStations[0]);
       return;
     }
 
     if (isPlaying) {
       audio.pause();
       isPlaying = false;
-      playPauseBtn.textContent = '▶';
-      liveDot.classList.remove('playing');
-      hudStatusText.textContent = 'Paused';
+      playSvg.classList.remove('hidden');
+      pauseSvg.classList.add('hidden');
+      statusDot.classList.remove('active');
+      playerStatusLabel.textContent = 'Paused';
+      heroPlayerCard.classList.remove('playing');
     } else {
       audio.play().then(onPlaySuccess);
     }
@@ -406,25 +384,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function playNext() {
     if (currentFilteredStations.length === 0) return;
-    let nextIndex = 0;
-    if (currentStationIndex !== -1) {
-      const currentInFiltered = currentFilteredStations.findIndex(s => s.id === stations[currentStationIndex]?.id);
-      nextIndex = (currentInFiltered + 1) % currentFilteredStations.length;
+    let nextIdx = 0;
+    if (currentStation) {
+      const idx = currentFilteredStations.findIndex(s => s.id === currentStation.id);
+      nextIdx = (idx + 1) % currentFilteredStations.length;
     }
-    playStation(currentFilteredStations[nextIndex]);
+    playStation(currentFilteredStations[nextIdx]);
   }
 
   function playPrev() {
     if (currentFilteredStations.length === 0) return;
-    let prevIndex = 0;
-    if (currentStationIndex !== -1) {
-      const currentInFiltered = currentFilteredStations.findIndex(s => s.id === stations[currentStationIndex]?.id);
-      prevIndex = (currentInFiltered - 1 + currentFilteredStations.length) % currentFilteredStations.length;
+    let prevIdx = 0;
+    if (currentStation) {
+      const idx = currentFilteredStations.findIndex(s => s.id === currentStation.id);
+      prevIdx = (idx - 1 + currentFilteredStations.length) % currentFilteredStations.length;
     }
-    playStation(currentFilteredStations[prevIndex]);
+    playStation(currentFilteredStations[prevIdx]);
   }
 
-  // 6. Favorites System
+  // 6. Favorites
   function toggleFavorite(stationId) {
     if (favorites.has(stationId)) {
       favorites.delete(stationId);
@@ -438,17 +416,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateFavButton() {
-    if (currentStationIndex !== -1) {
-      const current = stations[currentStationIndex];
-      favBtn.style.color = favorites.has(current?.id) ? '#ffd700' : 'inherit';
+    if (currentStation) {
+      const isFav = favorites.has(currentStation.id);
+      favBtn.classList.toggle('is-fav', isFav);
+      favBtn.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
     }
   }
 
-  // 7. Clipboard Copy
-  function copyStreamUrl(stationId) {
-    const url = `${window.location.origin}/stream/${stationId}`;
+  // 7. Clipboard & M3U Export
+  function copyStreamUrl(station) {
+    const target = station || currentStation;
+    if (!target) {
+      showToast('Select a station first');
+      return;
+    }
+    const url = target.stream_url || `${window.location.origin}/stream/${target.id}`;
     navigator.clipboard.writeText(url).then(() => {
-      showToast(`🔗 Copied MP3 URL: ${url}`);
+      showToast(`Copied stream: ${target.name}`);
     });
   }
 
@@ -457,88 +441,119 @@ document.addEventListener('DOMContentLoaded', () => {
     toast.classList.remove('hidden');
     setTimeout(() => {
       toast.classList.add('hidden');
-    }, 2800);
+    }, 2600);
+  }
+
+  function exportM3u() {
+    let m3u = '#EXTM3U\n';
+    stations.forEach(s => {
+      const group = s.category === 'air' ? 'All India Radio' : (s.category === 'tv' ? 'Live TV Audio' : 'Web Radio');
+      m3u += `#EXTINF:-1 tvg-id="${s.id}" tvg-name="${s.name}" group-title="${group}" radio="true",${s.name} [${s.language || s.state || ''}]\n`;
+      m3u += `${s.stream_url}\n`;
+    });
+    const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'akashvani_radio_playlist.m3u';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded M3U Playlist');
   }
 
   // 8. Event Listeners
   playPauseBtn.addEventListener('click', togglePlay);
   nextBtn.addEventListener('click', playNext);
   prevBtn.addEventListener('click', playPrev);
+  downloadM3uBtn.addEventListener('click', exportM3u);
 
   favBtn.addEventListener('click', () => {
-    if (currentStationIndex !== -1) {
-      toggleFavorite(stations[currentStationIndex].id);
-    }
+    if (currentStation) toggleFavorite(currentStation.id);
   });
 
-  copyStreamBtn.addEventListener('click', () => {
-    if (currentStationIndex !== -1) {
-      copyStreamUrl(stations[currentStationIndex].id);
-    } else {
-      showToast('Select a station first!');
-    }
-  });
+  copyStreamBtn.addEventListener('click', () => copyStreamUrl());
 
+  // Volume
   volumeSlider.addEventListener('input', (e) => {
     audio.volume = e.target.value;
-    volumeIcon.textContent = audio.volume === 0 ? '🔇' : (audio.volume < 0.5 ? '🔉' : '🔊');
+    audio.muted = (audio.volume === 0);
   });
 
-  // Search & Filters
-  searchInput.addEventListener('input', renderStations);
-  clearSearchBtn.addEventListener('click', () => {
-    searchInput.value = '';
+  muteBtn.addEventListener('click', () => {
+    audio.muted = !audio.muted;
+    volumeSlider.value = audio.muted ? 0 : (audio.volume || 1);
+  });
+
+  // Search
+  searchInput.addEventListener('input', () => {
+    clearSearchBtn.classList.toggle('visible', searchInput.value.length > 0);
     renderStations();
   });
-  stateFilter.addEventListener('change', renderStations);
-  langFilter.addEventListener('change', renderStations);
 
-  // Tab Switching
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeTab = btn.dataset.tab;
+  clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    clearSearchBtn.classList.remove('visible');
+    renderStations();
+  });
+
+  resetFilterBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    stateFilter.value = '';
+    langFilter.value = '';
+    activeLangChip = '';
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.lang === ''));
+    renderStations();
+  });
+
+  stateFilter.addEventListener('change', renderStations);
+  langFilter.addEventListener('change', () => {
+    activeLangChip = langFilter.value;
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.lang === activeLangChip));
+    renderStations();
+  });
+
+  // Language Quick Chips
+  languageChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeLangChip = chip.dataset.lang;
+    langFilter.value = activeLangChip;
+    renderStations();
+  });
+
+  // Nav Tabs
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      navItems.forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      activeTab = item.dataset.tab;
       renderStations();
     });
   });
 
-  // Keypad & Keyboard Shortcuts
+  // Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === searchInput) {
       if (e.key === 'Escape') searchInput.blur();
       return;
     }
-
-    if (e.key === '5' || e.code === 'Numpad5' || e.code === 'Space') {
+    if (e.code === 'Space') {
       e.preventDefault();
       togglePlay();
-    } else if (e.key === '8' || e.code === 'Numpad8' || e.key === 'ArrowDown') {
+    } else if (e.code === 'ArrowRight') {
       e.preventDefault();
       playNext();
-    } else if (e.key === '2' || e.code === 'Numpad2' || e.key === 'ArrowUp') {
+    } else if (e.code === 'ArrowLeft') {
       e.preventDefault();
       playPrev();
-    } else if (e.key === '0' || e.code === 'Numpad0' || e.key === 'm') {
+    } else if (e.key === 'm' || e.key === 'M') {
       audio.muted = !audio.muted;
-      volumeIcon.textContent = audio.muted ? '🔇' : '🔊';
     } else if (e.key === '/' || e.key === 'f') {
       e.preventDefault();
       searchInput.focus();
     }
-  });
-
-  document.querySelectorAll('.key-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.key;
-      if (key === '5') togglePlay();
-      if (key === '8') playNext();
-      if (key === '2') playPrev();
-      if (key === '0') {
-        audio.muted = !audio.muted;
-        volumeIcon.textContent = audio.muted ? '🔇' : '🔊';
-      }
-    });
   });
 
   // Modal
@@ -548,17 +563,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === infoModal) infoModal.classList.add('hidden');
   });
 
-  // Theme Toggle
-  themeToggleBtn.addEventListener('click', () => {
-    if (document.body.classList.contains('theme-cyber')) {
-      document.body.classList.remove('theme-cyber');
-      document.body.classList.add('theme-modern');
-    } else {
-      document.body.classList.remove('theme-modern');
-      document.body.classList.add('theme-cyber');
-    }
+  document.querySelectorAll('.copy-inline-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.copy;
+      const text = type === 'm3u' ? m3uFullUrl.textContent : activeStationDirectUrl.textContent;
+      navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+    });
   });
 
-  drawFallbackVisualizer();
+  // Start visualizer loop and load stations
+  drawFallback();
   loadStations();
 });

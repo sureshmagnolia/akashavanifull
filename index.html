@@ -3,191 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📻 Akashvani & Live Radio Hub</title>
-  <meta name="description" content="Free high-speed All India Radio (Akashvani), TV audio streams, and web radio player with keypad navigation, direct HLS, and MP3 streams.">
+  <title>Akashvani & Live Radio Hub</title>
+  <meta name="description" content="Premium online radio player for All India Radio (Akashvani), Regional TV live audio, and web stations.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <!-- Lightweight HLS.js for client-side direct streaming with zero server load -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body class="theme-cyber">
-  <div class="app-container">
+<body>
+  <div class="layout-wrapper">
     
-    <!-- Top Header -->
-    <header class="app-header">
-      <div class="brand">
-        <div class="pulse-indicator"></div>
-        <div class="brand-text">
-          <h1>AKASHVANI <span class="highlight">RADIO</span></h1>
-          <p class="tagline">All India Radio & Live Stream Hub • Zero-Lag & Hardware MP3</p>
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path>
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path>
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path>
+            <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"></path>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h2>Akashvani</h2>
+          <span>Radio Network</span>
         </div>
       </div>
 
-      <div class="header-actions">
-        <!-- Stream Engine Mode Toggle -->
-        <button id="modeToggleBtn" class="btn-secondary active-mode" title="Toggle between Direct Client Streaming (0% server load) and Server MP3 Proxy">
-          <span id="modeIcon">⚡</span> <span id="modeText">Direct Mode (0% Load)</span>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">DISCOVER</div>
+        <button class="nav-item active" data-tab="air">
+          <span class="nav-icon">📻</span>
+          <span class="nav-label">All India Radio</span>
+          <span class="badge" id="countAir">276</span>
         </button>
-        <button id="themeToggleBtn" class="btn-icon" title="Switch Theme (Retro CRT / Modern)">
-          <span class="theme-icon">🎨</span> <span class="btn-label">Theme</span>
+        <button class="nav-item" data-tab="tv">
+          <span class="nav-icon">📺</span>
+          <span class="nav-label">Live TV Audio</span>
+          <span class="badge" id="countTv">10</span>
         </button>
-        <a href="/playlist.m3u" class="btn-secondary" title="Download M3U Playlist for VLC / Kodi / IPTV">
-          <span>📥 M3U</span>
-        </a>
-        <button id="infoBtn" class="btn-secondary" title="Stream Info & ESP32 / VLC Setup">
-          <span>ℹ️ Connect</span>
+        <button class="nav-item" data-tab="others">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">Web & Classical</span>
+          <span class="badge" id="countOthers">5</span>
         </button>
-      </div>
-    </header>
+        <button class="nav-item" data-tab="fav">
+          <span class="nav-icon">⭐</span>
+          <span class="nav-label">Favorites</span>
+          <span class="badge badge-accent" id="countFav">0</span>
+        </button>
+      </nav>
 
-    <!-- Visualizer & Keypad Control Banner -->
-    <section class="visualizer-banner">
-      <div class="now-playing-hud">
-        <div class="hud-status">
-          <span class="hud-badge" id="hudCategory">AIR</span>
-          <span class="hud-state" id="hudState">NATIONAL</span>
-          <span class="hud-engine-badge" id="hudEngine">DIRECT HLS</span>
-        </div>
-        <h2 id="hudTitle" class="hud-title">Select a Station to Play</h2>
-        <div class="hud-meta">
-          <span id="hudLanguage">Hindi / Regional</span> • 
-          <span id="hudBitrate">Live Audio</span> • 
-          <span id="hudStatusText">Ready</span>
-        </div>
-      </div>
-
-      <!-- Frequency Visualizer -->
-      <div class="visualizer-canvas-wrap">
-        <canvas id="visualizerCanvas"></canvas>
-      </div>
-
-      <!-- Quick Keypad Virtual Pad -->
-      <div class="keypad-dock">
-        <div class="keypad-title">NUMPAD SHORTCUTS</div>
-        <div class="keypad-grid">
-          <button class="key-btn" data-key="2" title="Previous Station">▲ 2 (Prev)</button>
-          <button class="key-btn" data-key="5" title="Toggle Play / Pause">⏯ 5 (Play)</button>
-          <button class="key-btn" data-key="8" title="Next Station">▼ 8 (Next)</button>
-          <button class="key-btn" data-key="0" title="Mute / Clear">🔇 0 (Mute)</button>
+      <div class="sidebar-footer">
+        <div class="quick-tools">
+          <button id="downloadM3uBtn" class="tool-btn" title="Download Complete M3U Playlist for VLC / Kodi">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export M3U
+          </button>
+          <button id="infoBtn" class="tool-btn" title="Hardware & ESP32 Integration">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            API & ESP32
+          </button>
         </div>
       </div>
-    </section>
+    </aside>
 
-    <!-- Filters & Navigation Tabs -->
-    <section class="controls-bar">
-      <div class="tabs-nav">
-        <button class="tab-btn active" data-tab="air">📻 AIR Akashvani (<span id="countAir">0</span>)</button>
-        <button class="tab-btn" data-tab="tv">📺 TV Audio (<span id="countTv">0</span>)</button>
-        <button class="tab-btn" data-tab="others">🌐 Web Radios (<span id="countOthers">0</span>)</button>
-        <button class="tab-btn" data-tab="fav">⭐ Favorites (<span id="countFav">0</span>)</button>
-      </div>
-
-      <div class="search-filter-wrap">
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Search by name, language (Tamil, Hindi, Malayalam...), state..." autocomplete="off">
-          <button id="clearSearchBtn" class="clear-btn">&times;</button>
+    <!-- Main Content Area -->
+    <div class="main-content">
+      
+      <!-- Top Bar with Search & Filter -->
+      <header class="topbar">
+        <div class="search-container">
+          <svg class="search-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search stations by name, state, or language..." autocomplete="off">
+          <button id="clearSearchBtn" class="clear-search-btn" title="Clear search">&times;</button>
         </div>
 
-        <select id="stateFilter" class="filter-select">
-          <option value="">All States / Regions</option>
-        </select>
+        <div class="filter-controls">
+          <select id="stateFilter" class="select-dropdown">
+            <option value="">All States & Regions</option>
+          </select>
+          <select id="langFilter" class="select-dropdown">
+            <option value="">All Languages</option>
+          </select>
+        </div>
+      </header>
 
-        <select id="langFilter" class="filter-select">
-          <option value="">All Languages</option>
-        </select>
+      <!-- Language Quick Pills -->
+      <div class="language-chips" id="languageChips">
+        <button class="chip active" data-lang="">All</button>
+        <button class="chip" data-lang="Hindi">Hindi</button>
+        <button class="chip" data-lang="Tamil">Tamil</button>
+        <button class="chip" data-lang="Telugu">Telugu</button>
+        <button class="chip" data-lang="Malayalam">Malayalam</button>
+        <button class="chip" data-lang="Kannada">Kannada</button>
+        <button class="chip" data-lang="Bengali">Bengali</button>
+        <button class="chip" data-lang="Marathi">Marathi</button>
+        <button class="chip" data-lang="Gujarati">Gujarati</button>
+        <button class="chip" data-lang="Punjabi">Punjabi</button>
+        <button class="chip" data-lang="English">English</button>
       </div>
-    </section>
 
-    <!-- Station Grid -->
-    <main class="stations-section">
-      <div id="stationsGrid" class="stations-grid">
-        <!-- Rendered dynamically -->
-      </div>
-      <div id="emptyState" class="empty-state hidden">
-        <div class="empty-icon">📻</div>
-        <h3>No stations found</h3>
-        <p>Try searching for a different name, language, or state filter.</p>
-      </div>
-    </main>
+      <!-- Hero Station Banner (Now Playing Preview) -->
+      <section class="hero-player-card">
+        <div class="hero-left">
+          <div class="hero-avatar" id="heroAvatar">
+            <div class="sound-wave-bars">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="hero-meta">
+            <div class="hero-tag-row">
+              <span class="live-pill"><span class="dot"></span> LIVE BROADCAST</span>
+              <span class="hero-pill" id="heroCategory">AIR NATIONAL</span>
+              <span class="hero-pill-secondary" id="heroState">NEW DELHI</span>
+            </div>
+            <h1 class="hero-title" id="heroTitle">Select a station to begin listening</h1>
+            <p class="hero-subtitle" id="heroSubtitle">Explore 290+ All India Radio stations with crystal-clear audio.</p>
+          </div>
+        </div>
 
-    <!-- Persistent Bottom Player Bar -->
-    <footer class="player-bar">
-      <div class="player-info">
-        <div class="player-live-dot" id="liveDot"></div>
-        <div class="player-titles">
-          <div class="player-current-name" id="playerStationName">No Station Selected</div>
-          <div class="player-current-sub" id="playerStationSub">Press a station card or Numpad '5' to start</div>
+        <div class="hero-right">
+          <div class="visualizer-box">
+            <canvas id="visualizerCanvas"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Title & Counter -->
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h2 id="sectionTitle">All India Radio Stations</h2>
+          <span class="section-subtitle" id="sectionSubtitle">Showing 276 channels</span>
         </div>
       </div>
 
-      <div class="player-controls">
-        <button id="prevBtn" class="control-btn" title="Previous Station (Key 2)">⏮</button>
-        <button id="playPauseBtn" class="control-btn play-main" title="Play / Pause (Key 5)">▶</button>
-        <button id="nextBtn" class="control-btn" title="Next Station (Key 8)">⏭</button>
-      </div>
-
-      <div class="player-extra">
-        <div class="volume-container">
-          <span id="volumeIcon" class="volume-icon">🔊</span>
-          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1">
+      <!-- Stations Grid -->
+      <main class="grid-container">
+        <div id="stationsGrid" class="stations-grid">
+          <!-- Rendered dynamically -->
         </div>
-        <button id="favBtn" class="btn-extra" title="Add to Favorites">⭐</button>
-        <button id="copyStreamBtn" class="btn-extra" title="Copy MP3 Direct Stream URL for VLC / ESP32">🔗 Copy MP3</button>
-      </div>
-    </footer>
 
+        <div id="emptyState" class="empty-state-card hidden">
+          <div class="empty-art">📻</div>
+          <h3>No matching stations found</h3>
+          <p>Try resetting the search keyword or selecting "All States / Languages".</p>
+          <button id="resetFilterBtn" class="btn-primary">Reset Filters</button>
+        </div>
+      </main>
+
+    </div>
   </div>
+
+  <!-- Persistent Bottom Floating Player -->
+  <footer class="bottom-player">
+    <div class="player-left">
+      <div class="current-art" id="playerArt">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
+        </svg>
+      </div>
+      <div class="current-track-info">
+        <div class="track-title" id="playerStationName">No station selected</div>
+        <div class="track-sub" id="playerStationSub">Click any station card to start listening</div>
+      </div>
+      <button id="favBtn" class="btn-fav" title="Save to favorites">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+      </button>
+    </div>
+
+    <div class="player-center">
+      <div class="player-controls">
+        <button id="prevBtn" class="control-icon-btn" title="Previous station (Left Arrow)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
+          </svg>
+        </button>
+        
+        <button id="playPauseBtn" class="play-main-btn" title="Play / Pause (Spacebar)">
+          <svg class="play-svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+          <svg class="pause-svg hidden" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+          </svg>
+        </button>
+
+        <button id="nextBtn" class="control-icon-btn" title="Next station (Right Arrow)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="stream-status-row">
+        <span class="status-indicator-dot" id="statusDot"></span>
+        <span class="status-label" id="playerStatusLabel">Ready</span>
+      </div>
+    </div>
+
+    <div class="player-right">
+      <div class="volume-box">
+        <button id="muteBtn" class="volume-btn" title="Mute / Unmute">
+          <svg id="volSvgHigh" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </button>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.02" value="1" title="Volume">
+      </div>
+
+      <button id="copyStreamBtn" class="btn-action-small" title="Copy direct stream link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+        Copy Link
+      </button>
+    </div>
+  </footer>
 
   <!-- Audio Element -->
   <audio id="audioElement" preload="none"></audio>
 
-  <!-- Connect / Info Modal -->
+  <!-- Info & Integration Modal -->
   <div id="infoModal" class="modal-backdrop hidden">
     <div class="modal-card">
-      <div class="modal-header">
-        <h3>📻 Hardware, VLC & Streaming Integration</h3>
-        <button id="closeModalBtn" class="modal-close">&times;</button>
+      <div class="modal-head">
+        <h3>Stream Integration & Hardware Hub</h3>
+        <button id="closeModalBtn" class="modal-close-btn">&times;</button>
       </div>
-      <div class="modal-body">
-        <p><strong>Hybrid Streaming Architecture:</strong> Web listeners play directly in-browser using client-side HLS (<span style="color:var(--accent-primary)">0% server CPU & 0% server RAM</span>), allowing unlimited users to listen to 290+ different stations at once. The server also serves continuous <strong>MP3 HTTP streams</strong> for hardware microcontrollers (ESP32) and media players.</p>
+      <div class="modal-content">
+        <p>Use these links to integrate All India Radio directly into your smart devices, VLC, Home Assistant, or ESP32 hardware radios.</p>
         
-        <h4>1. VLC / Media Player / IPTV Playlist</h4>
-        <div class="code-box">
-          <code>Open Network Stream: <span id="sampleM3uUrl">http://localhost:8000/playlist.m3u</span></code>
+        <div class="snippet-group">
+          <label>VLC / Kodi / IPTV Playlist (All 290+ Stations)</label>
+          <div class="code-line">
+            <span id="m3uFullUrl"></span>
+            <button class="copy-inline-btn" data-copy="m3u">Copy</button>
+          </div>
         </div>
 
-        <h4>2. ESP32 / Arduino Audio Player Code Snippet</h4>
-        <div class="code-box">
-          <pre><code>#include "Audio.h"
+        <div class="snippet-group">
+          <label>Currently Selected Station Stream URL</label>
+          <div class="code-line">
+            <span id="activeStationDirectUrl">Select a station first</span>
+            <button class="copy-inline-btn" data-copy="active">Copy</button>
+          </div>
+        </div>
+
+        <div class="snippet-group">
+          <label>ESP32 Arduino Code Snippet</label>
+          <pre class="code-block"><code>#include "Audio.h"
 Audio audio;
 
 void setup() {
-  WiFi.begin("YOUR_SSID", "YOUR_PASSWORD");
+  WiFi.begin("SSID", "PASS");
   while (WiFi.status() != WL_CONNECTED) delay(500);
-  
-  // Direct MP3 hardware endpoint
-  audio.connecttohost("http://YOUR_SERVER_URL/stream/vividh_bharati");
+  audio.connecttohost("<span id="esp32Url">STREAM_URL</span>");
 }
 
 void loop() {
   audio.loop();
 }</code></pre>
         </div>
-
-        <h4>3. Direct MP3 Stream URL (Hardware / VLC)</h4>
-        <div class="code-box">
-          <code><span id="activeStreamUrl">Select a station to view its direct MP3 URL</span></code>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast hidden">Stream URL copied to clipboard!</div>
+  <!-- Toast Message -->
+  <div id="toast" class="toast-popup hidden">Stream URL copied to clipboard</div>
 
-  <script src="/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
