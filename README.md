@@ -7,58 +7,64 @@
 
 An ultra-optimized, high-concurrency **All India Radio (Akashvani)**, **Regional TV Audio**, and **Web Radio** streaming server & web player.
 
-Built specifically to transcode upstream HLS (`.m3u8`) audio into direct HTTP MP3 chunks and **multicast to hundreds of parallel listeners simultaneously** on 100% free cloud tiers (Koyeb, Render, Fly.io) or embedded microcontrollers (ESP32, Raspberry Pi).
+Built with a **Smart Hybrid Architecture** that allows **thousands of parallel web listeners** to listen to any of the 290+ distinct stations with **0% server load**, while providing a high-performance **StreamHub MP3 multiplexer** for hardware devices (ESP32, Arduino, Raspberry Pi, VLC).
 
 ---
 
-## ⚡ Key Highlights & Architecture
-
-### 🚀 High-Concurrency Stream Multiplexer (Pub-Sub Hub)
-* **Single Transcode per Active Station:** When 100 users listen to the same station (*e.g., Vividh Bharati*), only **1 background FFmpeg process** runs (~5% CPU, 40MB RAM).
-* **Zero Overhead Fanout:** Audio chunks are broadcasted across all connected HTTP clients via Node.js stream buffers.
-* **Instant Start (Rolling Ring Buffer):** When a new listener connects, the hub immediately flushes a 5-second rolling audio cache for instant playback with zero buffer lag.
-* **Smart Auto-Sleep:** When all users leave a station, a 20-second idle timer gracefully kills the FFmpeg process to free 100% of the CPU and memory.
+## ⚡ Smart Hybrid Architecture
 
 ```
-                    ┌────────────────────────┐
-                    │ Akashvani / WavesPB    │ (Upstream HLS .m3u8)
-                    └───────────┬────────────┘
-                                │
-                    ┌───────────▼────────────┐
-                    │  1x FFmpeg Process     │ (Transcodes to 96k MP3)
-                    └───────────┬────────────┘
-                                │
-                    ┌───────────▼────────────┐
-                    │ StreamHub Multiplexer  │ (Rolling 64KB Ring Buffer)
-                    └───────┬───┬───┬────────┘
-                            │   │   │
-             ┌──────────────┘   │   └──────────────┐
-             ▼                  ▼                  ▼
-     ┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-     │ Web Listener  │  │ ESP32 Radio   │  │  VLC / Kodi   │
-     │  (Browser)    │  │  (Hardware)   │  │  (IPTV App)   │
-     └───────────────┘  └───────────────┘  └───────────────┘
+                                  ┌──────────────────────────────┐
+                                  │       Incoming Listener      │
+                                  └──────────────┬───────────────┘
+                                                 │
+                        ┌────────────────────────┴────────────────────────┐
+                        ▼                                                 ▼
+        ┌───────────────────────────────┐                 ┌───────────────────────────────┐
+        │  Web Browser (Desktop/Mobile) │                 │  Hardware / VLC / IoT (ESP32) │
+        └───────────────┬───────────────┘                 └───────────────┬───────────────┘
+                        │                                                 │
+                        ▼                                                 ▼
+        ┌───────────────────────────────┐                 ┌───────────────────────────────┐
+        │   Client-Side Direct HLS      │                 │  StreamHub MP3 Multiplexer    │
+        │   (Hls.js / Native Safari)    │                 │   (/stream/:station_id)       │
+        └───────────────┬───────────────┘                 └───────────────┬───────────────┘
+                        │                                                 │
+                        ▼                                                 ▼
+        ┌───────────────────────────────┐                 ┌───────────────────────────────┐
+        │  ⚡ 0% Server CPU / 0 MB RAM   │                 │ 📻 1 Transcode per Station    │
+        │  Unlimited Parallel Stations  │                 │    Multicasted to All Users   │
+        └───────────────────────────────┘                 └───────────────────────────────┘
 ```
+
+1. **⚡ Web Listeners (0% Server Load)**:
+   * Web users stream directly from upstream Prasar Bharati CDNs using client-side Hls.js or native iOS/Safari HLS.
+   * Thousands of users can listen to **290+ different stations** at the exact same time without consuming any server CPU or RAM.
+   * If a direct stream encounters CORS on a specific network, it seamlessly and automatically falls back to the server MP3 proxy.
+2. **📻 Hardware & Media Players (StreamHub Multiplexer)**:
+   * Microcontrollers like ESP32 and media players that cannot parse HLS `.m3u8` connect to `/stream/:station_id`.
+   * **Single Transcode Fanout:** If 100 people listen to the same station, only **1 background FFmpeg process** runs.
+   * **Max Active Guard & LRU Eviction:** Protects 512MB free tier containers from Out-of-Memory (OOM) by capping active background transcoding tasks.
+   * **Auto-Sleep:** Idle station processes are killed after 20 seconds of inactivity.
 
 ---
 
 ## 📻 Features
 
-1. **290+ Live Radio Stations**:
-   * **276 All India Radio (Akashvani)** stations covering all Indian states and Union Territories (*Vividh Bharati, FM Gold, FM Rainbow, Raagam, regional stations*).
-   * **10 Regional Live TV Audio Feeds** (*24 News, Manorama News, Asianet News, MediaOne, DD News, NDTV, Sansad TV*).
-   * **Independent Classical & Web Radios** (*Carnatic Classical, Retro Hindi Hits, BBC World, Quran Radio*).
-2. **Universal Compatibility**:
-   * Works on any HTML5 browser (Desktop, Mobile, Smart TVs, Feature Phones).
-   * Direct MP3 streams for **ESP32, Arduino, Raspberry Pi, Volumio, Foobar2000, Home Assistant**.
-3. **M3U / M3U8 Playlist Export**:
-   * Import all 290+ stations into VLC, IPTV players, or Kodi via `/playlist.m3u`.
-4. **Retro CRT & Modern UI**:
-   * CRT neon-green terminal theme with Numpad navigation (`5` Play/Pause, `8` Next, `2` Prev, `0` Mute).
-   * Modern glassmorphism dark theme toggle.
-   * Real-time Web Audio API frequency visualizer.
-   * Search by station name, state, or language.
-   * Offline-persisted Favorites list.
+* **290+ Live Radio Stations ([`stations.json`](./stations.json))**:
+  * **276 All India Radio (Akashvani)** stations covering all Indian states and Union Territories (*Vividh Bharati, FM Gold, FM Rainbow, Raagam, regional stations*).
+  * **10 Regional Live TV Audio Feeds** (*24 News, Manorama News, Asianet News, MediaOne, DD News, NDTV, Sansad TV*).
+  * **Independent Classical & Web Radios** (*Carnatic Classical, Retro Hindi Hits, BBC World, Quran Radio*).
+* **Dual Theme Retro/Modern Web Player**:
+  * CRT Neon-Green Keypad Mode (Numpad `5` Play/Pause, `8` Next, `2` Prev, `0` Mute) & Modern Glassmorphism Dark Mode.
+  * Real-time Web Audio API frequency visualizer.
+  * Instant search by station name, state, or language.
+  * Offline-persisted Favorites list.
+* **Universal Hardware & Software Support**:
+  * Direct MP3 streams (`/stream/:id`) for **ESP32, Arduino, Raspberry Pi, Volumio, Home Assistant**.
+  * Dynamic **M3U Playlist export** (`/playlist.m3u`) for 1-click import into **VLC, Kodi, and IPTV players**.
+* **Automated Weekly Sync Pipeline**:
+  * GitHub Actions cron job running [`updater.py`](./updater.py) to keep stream URLs automatically up to date.
 
 ---
 
@@ -122,31 +128,8 @@ void loop() {
 1. Fork this repository.
 2. Go to [Render Dashboard](https://dashboard.render.com/) ➔ **New Web Service**.
 3. Select your repository.
-4. Render will automatically detect [`render.yaml`](./render.yaml) or select **Docker**.
+4. Render will automatically detect [`render.yaml`](./render.yaml).
 5. Click **Create Web Service**.
-
-### Option 3: Run Locally / On Raspberry Pi via Docker
-```bash
-# Build the Docker image
-docker build -t akashvani-radio .
-
-# Run the container
-docker run -d -p 8000:8000 --name radio akashvani-radio
-
-# Open in your browser
-http://localhost:8000
-```
-
----
-
-## 🔄 Automated Station Updates
-
-This repository includes [`updater.py`](./updater.py) and a GitHub Actions workflow [`.github/workflows/update-stations.yml`](./.github/workflows/update-stations.yml) that automatically queries the official Prasar Bharati / Akashvani website on a weekly schedule to keep all stream URLs up to date.
-
-To run manually:
-```bash
-python updater.py
-```
 
 ---
 

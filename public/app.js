@@ -1,4 +1,4 @@
-// Akashvani & Web Radio Hub - Client Application
+// Akashvani & Web Radio Hub - Client Application with Hybrid HLS Engine
 document.addEventListener('DOMContentLoaded', () => {
   // State
   let stations = [];
@@ -7,6 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeTab = 'air';
   let favorites = new Set(JSON.parse(localStorage.getItem('akashvani_favs') || '[]'));
   let isPlaying = false;
+  let streamMode = localStorage.getItem('akashvani_mode') || 'direct'; // 'direct' (0% server load) or 'proxy' (MP3 server transcode)
+
+  // HLS Engine Instance
+  let hls = null;
 
   // DOM Elements
   const audio = document.getElementById('audioElement');
@@ -36,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hudTitle = document.getElementById('hudTitle');
   const hudLanguage = document.getElementById('hudLanguage');
   const hudStatusText = document.getElementById('hudStatusText');
+  const hudEngine = document.getElementById('hudEngine');
 
   // Counts
   const countAir = document.getElementById('countAir');
@@ -43,11 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const countOthers = document.getElementById('countOthers');
   const countFav = document.getElementById('countFav');
 
-  // Modal & Theme
+  // Modal & Theme & Mode
   const infoBtn = document.getElementById('infoBtn');
   const infoModal = document.getElementById('infoModal');
   const closeModalBtn = document.getElementById('closeModalBtn');
   const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const modeToggleBtn = document.getElementById('modeToggleBtn');
+  const modeIcon = document.getElementById('modeIcon');
+  const modeText = document.getElementById('modeText');
   const toast = document.getElementById('toast');
   const activeStreamUrl = document.getElementById('activeStreamUrl');
   const sampleM3uUrl = document.getElementById('sampleM3uUrl');
@@ -73,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       visualizerInitialized = true;
       drawVisualizer();
     } catch (e) {
-      console.warn('Web Audio API visualizer init skipped/blocked until user interaction');
+      console.warn('Web Audio visualizer running in fallback canvas mode');
     }
   }
 
@@ -113,13 +121,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Set canvas resolution
   function resizeCanvas() {
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
   }
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
+
+  // Mode Toggle Handler
+  function updateModeUI() {
+    if (streamMode === 'direct') {
+      modeIcon.textContent = '⚡';
+      modeText.textContent = 'Direct Mode (0% Load)';
+      hudEngine.textContent = 'DIRECT HLS';
+      modeToggleBtn.classList.add('active-mode');
+    } else {
+      modeIcon.textContent = '📻';
+      modeText.textContent = 'Server MP3 Hub';
+      hudEngine.textContent = 'SERVER MP3';
+      modeToggleBtn.classList.remove('active-mode');
+    }
+    localStorage.setItem('akashvani_mode', streamMode);
+  }
+
+  modeToggleBtn.addEventListener('click', () => {
+    streamMode = streamMode === 'direct' ? 'proxy' : 'direct';
+    updateModeUI();
+    showToast(`Switched to: ${streamMode === 'direct' ? '⚡ Direct Client Mode (0% Server Load)' : '📻 Server MP3 Hub Mode'}`);
+    if (currentStationIndex !== -1) {
+      playStation(stations[currentStationIndex]);
+    }
+  });
 
   // 1. Fetch Stations
   async function loadStations() {
@@ -131,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
       populateFilters();
       updateCounts();
       renderStations();
+      updateModeUI();
       hudStatusText.textContent = 'Ready';
     } catch (err) {
       console.error('Error loading stations:', err);
@@ -180,20 +213,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedLang = langFilter.value;
 
     currentFilteredStations = stations.filter(s => {
-      // Tab filter
       if (activeTab === 'fav') {
         if (!favorites.has(s.id)) return false;
       } else if (s.category !== activeTab) {
         return false;
       }
 
-      // State filter
       if (selectedState && s.state !== selectedState) return false;
-
-      // Language filter
       if (selectedLang && (!s.language || !s.language.toLowerCase().includes(selectedLang.toLowerCase()))) return false;
 
-      // Search query
       if (query) {
         const matchesName = s.name.toLowerCase().includes(query);
         const matchesLang = s.language && s.language.toLowerCase().includes(query);
@@ -212,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     emptyState.classList.add('hidden');
 
-    currentFilteredStations.forEach((station, index) => {
+    currentFilteredStations.forEach((station) => {
       const isFav = favorites.has(station.id);
       const isCurrent = currentStationIndex !== -1 && stations[currentStationIndex]?.id === station.id;
 
@@ -229,11 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="card-bottom">
           <span class="card-play-trigger">${isCurrent && isPlaying ? '❚❚ Playing' : '▶ Play Now'}</span>
-          <button class="card-copy-btn" title="Copy Stream URL">🔗 Stream</button>
+          <button class="card-copy-btn" title="Copy MP3 Stream URL">🔗 MP3</button>
         </div>
       `;
 
-      // Play on click
       card.addEventListener('click', (e) => {
         if (e.target.classList.contains('card-fav-btn')) {
           toggleFavorite(station.id);
@@ -250,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 5. Playback Logic
+  // 5. Playback Engine (Smart Hybrid HLS & MP3)
   function playStation(station) {
     if (!station) return;
     initVisualizer();
@@ -259,38 +286,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     currentStationIndex = stations.findIndex(s => s.id === station.id);
-    const streamUrl = `/stream/${station.id}`;
 
     // Update HUD
     hudTitle.textContent = station.name;
     hudCategory.textContent = station.category.toUpperCase();
     hudState.textContent = station.state || 'NATIONAL';
     hudLanguage.textContent = station.language || 'Standard';
-    hudStatusText.textContent = 'Buffering stream...';
+    hudStatusText.textContent = 'Connecting...';
 
     // Update Player Bar
     playerStationName.textContent = station.name;
-    playerStationSub = `${station.state || 'NATIONAL'} • ${station.language || 'Hindi'}`;
+    playerStationSub.textContent = `${station.state || 'NATIONAL'} • ${station.language || 'Standard'}`;
     activeStreamUrl.textContent = `${window.location.origin}/stream/${station.id}`;
 
-    audio.src = streamUrl;
-    audio.play()
-      .then(() => {
-        isPlaying = true;
-        playPauseBtn.textContent = '❚❚';
-        liveDot.classList.add('playing');
-        hudStatusText.textContent = 'LIVE NOW';
-        updateFavButton();
-        renderStations();
-      })
-      .catch(err => {
-        console.warn('Playback error:', err);
-        hudStatusText.textContent = 'Retrying connection...';
-      });
+    // Clean up existing HLS engine instance
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+
+    const isDirectHls = streamMode === 'direct' && station.stream_url && (station.stream_url.includes('.m3u8') || station.stream_url.startsWith('http'));
+
+    if (isDirectHls) {
+      // ⚡ DIRECT CLIENT MODE (0% Server Load)
+      if (window.Hls && Hls.isSupported() && station.stream_url.includes('.m3u8')) {
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls.loadSource(station.stream_url);
+        hls.attachMedia(audio);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          audio.play().then(onPlaySuccess).catch(onPlayError);
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.warn('Direct HLS fatal error, seamlessly falling back to Server MP3 Hub:', data);
+            fallbackToProxy(station);
+          }
+        });
+      } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native Safari / iOS HLS
+        audio.src = station.stream_url;
+        audio.play().then(onPlaySuccess).catch(() => fallbackToProxy(station));
+      } else {
+        fallbackToProxy(station);
+      }
+    } else {
+      // 📻 SERVER MP3 HUB MODE
+      fallbackToProxy(station);
+    }
+  }
+
+  function fallbackToProxy(station) {
+    audio.src = `/stream/${station.id}`;
+    audio.play().then(onPlaySuccess).catch(onPlayError);
+  }
+
+  function onPlaySuccess() {
+    isPlaying = true;
+    playPauseBtn.textContent = '❚❚';
+    liveDot.classList.add('playing');
+    hudStatusText.textContent = 'LIVE NOW';
+    updateFavButton();
+    renderStations();
+  }
+
+  function onPlayError(err) {
+    console.warn('Playback error:', err);
+    hudStatusText.textContent = 'Connecting...';
   }
 
   function togglePlay() {
-    if (!audio.src || currentStationIndex === -1) {
+    if (!audio.src && !hls) {
       if (stations.length > 0) playStation(stations[0]);
       return;
     }
@@ -302,12 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
       liveDot.classList.remove('playing');
       hudStatusText.textContent = 'Paused';
     } else {
-      audio.play().then(() => {
-        isPlaying = true;
-        playPauseBtn.textContent = '❚❚';
-        liveDot.classList.add('playing');
-        hudStatusText.textContent = 'LIVE NOW';
-      });
+      audio.play().then(onPlaySuccess);
     }
     renderStations();
   }
@@ -356,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function copyStreamUrl(stationId) {
     const url = `${window.location.origin}/stream/${stationId}`;
     navigator.clipboard.writeText(url).then(() => {
-      showToast(`🔗 Copied: ${url}`);
+      showToast(`🔗 Copied MP3 URL: ${url}`);
     });
   }
 
@@ -413,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Keypad & Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
-    // Ignore when typing in search input
     if (document.activeElement === searchInput) {
       if (e.key === 'Escape') searchInput.blur();
       return;
@@ -437,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Virtual Keypad Dock Clicks
   document.querySelectorAll('.key-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;
@@ -469,9 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Start Visualizer Fallback Loop
   drawFallbackVisualizer();
-
-  // Initial Data Load
   loadStations();
 });

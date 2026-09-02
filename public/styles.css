@@ -107,6 +107,7 @@ body {
 .header-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 button, .btn-secondary {
@@ -132,6 +133,11 @@ button:hover, .btn-secondary:hover {
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
+.active-mode {
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+}
+
 /* Visualizer & Keypad Banner */
 .visualizer-banner {
   display: grid;
@@ -154,6 +160,7 @@ button:hover, .btn-secondary:hover {
 .hud-status {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .hud-badge {
@@ -170,6 +177,15 @@ button:hover, .btn-secondary:hover {
   color: var(--accent-secondary);
   border: 1px solid var(--accent-secondary);
   padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.hud-engine-badge {
+  font-size: 0.65rem;
+  color: #000;
+  background: var(--accent-secondary);
+  font-weight: 700;
+  padding: 2px 6px;
   border-radius: 4px;
 }
 

@@ -4,9 +4,10 @@ const { EventEmitter } = require('events');
 class StreamHub extends EventEmitter {
   constructor(options = {}) {
     super();
-    this.bitrate = options.bitrate || process.env.BITRATE || '96k'; // 96k default for maximum concurrency and low bandwidth
+    this.bitrate = options.bitrate || process.env.BITRATE || '96k'; // 96k for low bandwidth & high concurrency
     this.idleTimeoutMs = options.idleTimeoutMs || 20000; // 20s idle timeout before killing ffmpeg
     this.bufferSize = options.bufferSize || 64 * 1024; // 64KB rolling buffer (~5s of MP3) for instant playback
+    this.maxActiveStreams = parseInt(options.maxActiveStreams || process.env.MAX_ACTIVE_STREAMS || '8', 10); // Safety limit for 512MB Free Tier
     this.activeStreams = new Map(); // stationId -> streamObject
   }
 
@@ -17,6 +18,10 @@ class StreamHub extends EventEmitter {
 
     let stream = this.activeStreams.get(station.id);
     if (!stream) {
+      // Check if we reached the maximum concurrent active station processes limit for the free tier
+      if (this.activeStreams.size >= this.maxActiveStreams) {
+        this._evictOldestOrIdleStream();
+      }
       stream = this._createStream(station);
       this.activeStreams.set(station.id, stream);
     }
@@ -29,6 +34,48 @@ class StreamHub extends EventEmitter {
     return stream;
   }
 
+  _evictOldestOrIdleStream() {
+    console.warn(`[STREAM HUB] ⚠️ Max active streams limit (${this.maxActiveStreams}) reached. Finding idle/oldest stream to evict...`);
+    
+    // First try finding a stream with 0 listeners
+    for (const [id, st] of this.activeStreams.entries()) {
+      if (st.listeners.size === 0) {
+        console.log(`[STREAM HUB] Evicting idle station: ${st.station.name}`);
+        this._killStream(id);
+        return;
+      }
+    }
+
+    // Otherwise evict the stream with fewest listeners / oldest start
+    let lowestCount = Infinity;
+    let targetId = null;
+
+    for (const [id, st] of this.activeStreams.entries()) {
+      if (st.listeners.size < lowestCount) {
+        lowestCount = st.listeners.size;
+        targetId = id;
+      }
+    }
+
+    if (targetId) {
+      console.log(`[STREAM HUB] Evicting station with lowest listeners: ${targetId}`);
+      this._killStream(targetId);
+    }
+  }
+
+  _killStream(stationId) {
+    const stream = this.activeStreams.get(stationId);
+    if (!stream) return;
+
+    if (stream.idleTimer) clearTimeout(stream.idleTimer);
+    if (stream.ffmpeg) {
+      try {
+        stream.ffmpeg.kill('SIGKILL');
+      } catch (e) {}
+    }
+    this.activeStreams.delete(stationId);
+  }
+
   _createStream(station) {
     const stream = {
       station,
@@ -39,8 +86,7 @@ class StreamHub extends EventEmitter {
       idleTimer: null,
       startTime: Date.now(),
       bytesStreamed: 0,
-      isStarting: false,
-      reconnectAttempts: 0
+      isStarting: false
     };
 
     this._startFFmpeg(stream);
@@ -65,12 +111,12 @@ class StreamHub extends EventEmitter {
       '-reconnect_streamed', '1',
       '-reconnect_delay_max', '5',
       '-i', url,
-      '-vn',                    // Strip any video tracks
+      '-vn',                    // Strip video
       '-c:a', 'libmp3lame',     // Pure MP3 audio codec
-      '-b:a', this.bitrate,     // Configurable bitrate (e.g. 96k / 128k)
-      '-ar', '44100',          // Standard sample rate
+      '-b:a', this.bitrate,     // 96k/128k
+      '-ar', '44100',          // Sample rate
       '-ac', '2',              // Stereo
-      '-f', 'mp3',             // Output format MP3
+      '-f', 'mp3',             // MP3 container
       'pipe:1'
     ];
 
@@ -93,7 +139,7 @@ class StreamHub extends EventEmitter {
         stream.ringBufferLength -= removed.length;
       }
 
-      // Fan out / multicast chunk to all connected clients
+      // Multicast chunk to all connected clients
       for (const res of stream.listeners) {
         if (!res.writableEnded && !res.destroyed) {
           try {
@@ -103,11 +149,6 @@ class StreamHub extends EventEmitter {
           }
         }
       }
-    });
-
-    ffmpeg.stderr.on('data', (data) => {
-      // Log errors or warnings if needed
-      // console.warn(`[FFmpeg ${stream.station.id}] ${data.toString().trim()}`);
     });
 
     ffmpeg.on('close', (code) => {
@@ -137,7 +178,7 @@ class StreamHub extends EventEmitter {
 
     console.log(`[STREAM HUB] 👤 Client connected to "${station.name}". Total listeners on this station: ${stream.listeners.size}`);
 
-    // Immediately flush the rolling buffer to new client so audio starts instantly without buffering lag
+    // Flush rolling buffer to new client so audio starts immediately
     if (stream.ringBuffer.length > 0) {
       for (const chunk of stream.ringBuffer) {
         try {
@@ -148,7 +189,6 @@ class StreamHub extends EventEmitter {
       }
     }
 
-    // Clean up when client disconnects
     res.on('close', () => {
       this.removeListener(station.id, res);
     });
@@ -161,19 +201,13 @@ class StreamHub extends EventEmitter {
     stream.listeners.delete(res);
     console.log(`[STREAM HUB] 👋 Client disconnected from "${stream.station.name}". Remaining listeners: ${stream.listeners.size}`);
 
-    // If no listeners left on this station, schedule graceful shutdown to free CPU/RAM
     if (stream.listeners.size === 0) {
       if (stream.idleTimer) clearTimeout(stream.idleTimer);
       
       stream.idleTimer = setTimeout(() => {
         if (stream.listeners.size === 0) {
           console.log(`[STREAM HUB] 💤 Station idle (${this.idleTimeoutMs / 1000}s), stopping FFmpeg for: ${stream.station.name}`);
-          if (stream.ffmpeg) {
-            try {
-              stream.ffmpeg.kill('SIGTERM');
-            } catch (e) {}
-          }
-          this.activeStreams.delete(stationId);
+          this._killStream(stationId);
         }
       }, this.idleTimeoutMs);
     }
@@ -195,6 +229,7 @@ class StreamHub extends EventEmitter {
     }
 
     return {
+      maxActiveCapacity: this.maxActiveStreams,
       activeStationsCount: this.activeStreams.size,
       totalListeners,
       activeStations,
