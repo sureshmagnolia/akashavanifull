@@ -1,58 +1,64 @@
-// Akashvani & Live Radio Hub - Modern Studio Client
+// Akashvani Radio - Clean, Simple & Search-First Client
 document.addEventListener('DOMContentLoaded', () => {
-  // Application State
+  // State
   let stations = [];
   let currentStation = null;
-  let currentFilteredStations = [];
-  let activeTab = 'air';
-  let activeLangChip = '';
+  let currentFilter = 'all';
   let favorites = new Set(JSON.parse(localStorage.getItem('akashvani_favs') || '[]'));
   let isPlaying = false;
   let hls = null;
 
+  // Featured station IDs to show on initial clean view
+  const FEATURED_IDS = [
+    'vividh_bharati',
+    'live_news_24x7',
+    'fm_gold_delhi',
+    'raagam',
+    'fm_rainbow_delhi',
+    'radio_mirchi_top20',
+    'tv_24_news',
+    'tv_manorama_news',
+    'tv_asianet_news',
+    'radio_carnatic',
+    'radio_retro_hindi',
+    'tv_dd_news'
+  ];
+
   // DOM Elements
   const audio = document.getElementById('audioElement');
-  const stationsGrid = document.getElementById('stationsGrid');
-  const emptyState = document.getElementById('emptyState');
-  const resetFilterBtn = document.getElementById('resetFilterBtn');
   const searchInput = document.getElementById('searchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
+  const quickTags = document.getElementById('quickTags');
   const stateFilter = document.getElementById('stateFilter');
-  const langFilter = document.getElementById('langFilter');
-  const languageChips = document.getElementById('languageChips');
-  const navItems = document.querySelectorAll('.nav-item');
+  const stationsList = document.getElementById('stationsList');
+  const emptyState = document.getElementById('emptyState');
+  const resetSearchBtn = document.getElementById('resetSearchBtn');
+  const resultsTitle = document.getElementById('resultsTitle');
+  const resultsCount = document.getElementById('resultsCount');
+  const countFav = document.getElementById('countFav');
 
-  // Hero Card Elements
-  const heroPlayerCard = document.querySelector('.hero-player-card');
+  // Hero Card
+  const nowPlayingCard = document.querySelector('.now-playing-card');
   const heroTitle = document.getElementById('heroTitle');
-  const heroSubtitle = document.getElementById('heroSubtitle');
+  const heroDesc = document.getElementById('heroDesc');
   const heroCategory = document.getElementById('heroCategory');
   const heroState = document.getElementById('heroState');
-  const sectionTitle = document.getElementById('sectionTitle');
-  const sectionSubtitle = document.getElementById('sectionSubtitle');
 
-  // Bottom Player Elements
+  // Bottom Player
   const playPauseBtn = document.getElementById('playPauseBtn');
-  const playSvg = playPauseBtn.querySelector('.play-svg');
-  const pauseSvg = playPauseBtn.querySelector('.pause-svg');
+  const playIcon = playPauseBtn.querySelector('.play-icon');
+  const pauseIcon = playPauseBtn.querySelector('.pause-icon');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const playerStationName = document.getElementById('playerStationName');
   const playerStationSub = document.getElementById('playerStationSub');
-  const statusDot = document.getElementById('statusDot');
-  const playerStatusLabel = document.getElementById('playerStatusLabel');
+  const playerStatusText = document.getElementById('playerStatusText');
   const volumeSlider = document.getElementById('volumeSlider');
   const muteBtn = document.getElementById('muteBtn');
   const favBtn = document.getElementById('favBtn');
   const copyStreamBtn = document.getElementById('copyStreamBtn');
 
-  // Tab Counters
-  const countAir = document.getElementById('countAir');
-  const countTv = document.getElementById('countTv');
-  const countOthers = document.getElementById('countOthers');
-  const countFav = document.getElementById('countFav');
-
-  // Modal Elements
+  // Modal
   const infoBtn = document.getElementById('infoBtn');
   const infoModal = document.getElementById('infoModal');
   const closeModalBtn = document.getElementById('closeModalBtn');
@@ -61,8 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeStationDirectUrl = document.getElementById('activeStationDirectUrl');
   const esp32Url = document.getElementById('esp32Url');
   const toast = document.getElementById('toast');
-
-  m3uFullUrl.textContent = `${window.location.origin}/playlist.m3u`;
 
   // Visualizer Setup
   const canvas = document.getElementById('visualizerCanvas');
@@ -106,19 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
       gradient.addColorStop(0, '#6366f1');
       gradient.addColorStop(1, '#06b6d4');
       ctx.fillStyle = gradient;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth - 3, barHeight);
+      ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
       x += barWidth;
     }
   }
 
   function drawFallback() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const bars = 18;
+    const bars = 16;
     const barWidth = canvas.width / bars;
     const time = Date.now() / 180;
 
     for (let i = 0; i < bars; i++) {
-      const height = isPlaying ? Math.abs(Math.sin(time + i * 0.45)) * (canvas.height * 0.75) + 6 : 4;
+      const height = isPlaying ? Math.abs(Math.sin(time + i * 0.45)) * (canvas.height * 0.75) + 4 : 3;
       const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
       gradient.addColorStop(0, '#6366f1');
       gradient.addColorStop(1, '#06b6d4');
@@ -136,10 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // 1. Data Fetching
+  // 1. Fetch Station List
   async function loadStations() {
     try {
-      playerStatusLabel.textContent = 'Loading...';
+      playerStatusText.textContent = 'Loading...';
       let data;
       try {
         const res = await fetch('/api/stations');
@@ -152,67 +156,60 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       stations = Array.isArray(data) ? data : (data.stations || []);
-      populateFilters();
-      updateCounts();
+      populateStateDropdown();
+      updateFavoritesCount();
       renderStations();
-      playerStatusLabel.textContent = 'Ready';
+      playerStatusText.textContent = 'Ready';
     } catch (err) {
       console.error('Error loading stations:', err);
-      playerStatusLabel.textContent = 'Offline';
+      playerStatusText.textContent = 'Offline';
     }
   }
 
-  // 2. Populate Dropdowns
-  function populateFilters() {
+  // 2. Populate State Dropdown
+  function populateStateDropdown() {
     const states = new Set();
-    const languages = new Set();
-
     stations.forEach(s => {
       if (s.state) states.add(s.state);
-      if (s.language) {
-        s.language.split(',').forEach(l => languages.add(l.trim()));
-      }
     });
-
     Array.from(states).sort().forEach(st => {
       const opt = document.createElement('option');
       opt.value = st;
       opt.textContent = st;
       stateFilter.appendChild(opt);
     });
-
-    Array.from(languages).sort().forEach(lang => {
-      const opt = document.createElement('option');
-      opt.value = lang;
-      opt.textContent = lang;
-      langFilter.appendChild(opt);
-    });
   }
 
-  // 3. Tab & Count Updates
-  function updateCounts() {
-    countAir.textContent = stations.filter(s => s.category === 'air').length;
-    countTv.textContent = stations.filter(s => s.category === 'tv').length;
-    countOthers.textContent = stations.filter(s => s.category === 'others').length;
+  function updateFavoritesCount() {
     countFav.textContent = favorites.size;
   }
 
-  // 4. Render Grid Cards
-  function renderStations() {
+  // 3. Search & Filter Logic
+  function getFilteredStations() {
     const query = searchInput.value.trim().toLowerCase();
     const selectedState = stateFilter.value;
-    const selectedLang = langFilter.value || activeLangChip;
 
-    currentFilteredStations = stations.filter(s => {
-      if (activeTab === 'fav') {
+    // If no search query and default "all" pill selected -> return curated featured stations
+    if (!query && currentFilter === 'all' && !selectedState) {
+      const featured = stations.filter(s => FEATURED_IDS.includes(s.id));
+      return featured.length > 0 ? featured : stations.slice(0, 12);
+    }
+
+    return stations.filter(s => {
+      // Filter pills
+      if (currentFilter === 'fav') {
         if (!favorites.has(s.id)) return false;
-      } else if (s.category !== activeTab) {
-        return false;
+      } else if (currentFilter === 'tv') {
+        if (s.category !== 'tv') return false;
+      } else if (currentFilter !== 'all') {
+        // Language match
+        if (!s.language || !s.language.toLowerCase().includes(currentFilter.toLowerCase())) return false;
       }
 
+      // State dropdown
       if (selectedState && s.state !== selectedState) return false;
-      if (selectedLang && (!s.language || !s.language.toLowerCase().includes(selectedLang.toLowerCase()))) return false;
 
+      // Query search
       if (query) {
         const matchesName = s.name.toLowerCase().includes(query);
         const matchesLang = s.language && s.language.toLowerCase().includes(query);
@@ -222,73 +219,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
       return true;
     });
+  }
 
-    // Update Section Title & Subtitle
-    const tabNames = { air: 'All India Radio Stations', tv: 'Live TV Audio Channels', others: 'Web & Classical Radios', fav: 'Saved Favorite Stations' };
-    sectionTitle.textContent = tabNames[activeTab] || 'Radio Stations';
-    sectionSubtitle.textContent = `Showing ${currentFilteredStations.length} ${currentFilteredStations.length === 1 ? 'station' : 'stations'}`;
+  // 4. Render Station List (Compact & Clean)
+  function renderStations() {
+    const query = searchInput.value.trim();
+    const isDefault = !query && currentFilter === 'all' && !stateFilter.value;
+    const list = getFilteredStations();
 
-    stationsGrid.innerHTML = '';
+    // Section title
+    if (isDefault) {
+      resultsTitle.textContent = '⭐ Featured Stations';
+      resultsCount.textContent = `${list.length} stations`;
+    } else if (query) {
+      resultsTitle.textContent = `Search Results for "${query}"`;
+      resultsCount.textContent = `${list.length} ${list.length === 1 ? 'station' : 'stations'} found`;
+    } else if (currentFilter === 'fav') {
+      resultsTitle.textContent = '⭐ Saved Favorites';
+      resultsCount.textContent = `${list.length} saved`;
+    } else {
+      resultsTitle.textContent = `${currentFilter.toUpperCase()} Stations`;
+      resultsCount.textContent = `${list.length} stations`;
+    }
 
-    if (currentFilteredStations.length === 0) {
+    stationsList.innerHTML = '';
+
+    if (list.length === 0) {
       emptyState.classList.remove('hidden');
       return;
     }
     emptyState.classList.add('hidden');
 
-    currentFilteredStations.forEach((station) => {
+    list.forEach(station => {
       const isFav = favorites.has(station.id);
       const isCurrent = currentStation && currentStation.id === station.id;
 
-      const card = document.createElement('div');
-      card.className = `station-card ${isCurrent && isPlaying ? 'active-card' : ''}`;
+      const item = document.createElement('div');
+      item.className = `station-item ${isCurrent && isPlaying ? 'active' : ''}`;
       
       const avatarLetter = station.name.charAt(0).toUpperCase();
 
-      card.innerHTML = `
-        <div class="card-header">
-          <div class="card-title-group">
-            <div class="card-avatar">${avatarLetter}</div>
-            <div class="card-title">${station.name}</div>
+      item.innerHTML = `
+        <div class="item-left">
+          <div class="item-badge">${avatarLetter}</div>
+          <div class="item-text">
+            <div class="item-title">${station.name}</div>
+            <div class="item-sub">${station.state || 'National'} • ${station.language || 'Standard'}</div>
           </div>
-          <button class="card-fav-btn ${isFav ? 'is-fav' : ''}" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+        </div>
+        <div class="item-actions">
+          <button class="item-fav-btn ${isFav ? 'is-fav' : ''}" title="${isFav ? 'Remove Favorite' : 'Save Favorite'}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
           </button>
         </div>
-        <div class="card-tags">
-          <span class="tag-badge state">${station.state || 'NATIONAL'}</span>
-          <span class="tag-badge">${station.language || 'General'}</span>
-        </div>
-        <div class="card-footer">
-          <div class="play-action">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              ${isCurrent && isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>'}
-            </svg>
-            ${isCurrent && isPlaying ? 'Playing' : 'Listen Now'}
-          </div>
-          <button class="btn-inline-copy" title="Copy Stream URL">Copy URL</button>
-        </div>
       `;
 
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.card-fav-btn')) {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.item-fav-btn')) {
           toggleFavorite(station.id);
-          return;
-        }
-        if (e.target.closest('.btn-inline-copy')) {
-          copyStreamUrl(station);
           return;
         }
         playStation(station);
       });
 
-      stationsGrid.appendChild(card);
+      stationsList.appendChild(item);
     });
   }
 
-  // 5. Playback Engine
+  // 5. Audio Playback
   function playStation(station) {
     if (!station) return;
     initVisualizer();
@@ -298,27 +298,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentStation = station;
 
-    // Update Hero Card
+    // Update Hero UI
     heroTitle.textContent = station.name;
-    heroSubtitle.textContent = `Broadcasting from ${station.state || 'India'} in ${station.language || 'Standard'}.`;
+    heroDesc.textContent = `${station.state || 'India'} • ${station.language || 'Broadcast'}`;
     heroCategory.textContent = station.category.toUpperCase();
     heroState.textContent = station.state || 'NATIONAL';
-    heroPlayerCard.classList.add('playing');
+    nowPlayingCard.classList.add('playing');
 
-    // Update Bottom Player
+    // Update Bottom Player UI
     playerStationName.textContent = station.name;
     playerStationSub.textContent = `${station.state || 'National'} • ${station.language || 'Standard'}`;
-    playerStatusLabel.textContent = 'Connecting...';
-    activeStationDirectUrl.textContent = station.stream_url;
-    esp32Url.textContent = `${window.location.origin}/stream/${station.id}`;
+    playerStatusText.textContent = 'Buffering...';
 
-    // Clean up previous HLS instance
+    // Direct stream link for copy/modal
+    activeStationDirectUrl.textContent = station.stream_url;
+    esp32Url.textContent = station.stream_url;
+
+    // Cleanup previous HLS
     if (hls) {
       hls.destroy();
       hls = null;
     }
 
-    // Direct HLS engine with seamless fallback
+    // Direct playback
     if (window.Hls && Hls.isSupported() && station.stream_url && station.stream_url.includes('.m3u8')) {
       hls = new Hls({ enableWorker: true, lowLatencyMode: true });
       hls.loadSource(station.stream_url);
@@ -328,54 +330,47 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
-          fallbackToAudioSrc(station);
+          audio.src = station.stream_url;
+          audio.play().then(onPlaySuccess).catch(onPlayError);
         }
       });
-    } else if (audio.canPlayType('application/vnd.apple.mpegurl') && station.stream_url) {
-      audio.src = station.stream_url;
-      audio.play().then(onPlaySuccess).catch(() => fallbackToAudioSrc(station));
     } else {
-      fallbackToAudioSrc(station);
+      audio.src = station.stream_url;
+      audio.play().then(onPlaySuccess).catch(onPlayError);
     }
 
     updateFavButton();
     renderStations();
   }
 
-  function fallbackToAudioSrc(station) {
-    audio.src = `/stream/${station.id}`;
-    audio.play().then(onPlaySuccess).catch(onPlayError);
-  }
-
   function onPlaySuccess() {
     isPlaying = true;
-    playSvg.classList.add('hidden');
-    pauseSvg.classList.remove('hidden');
-    statusDot.classList.add('active');
-    playerStatusLabel.textContent = 'Live Broadcast';
-    heroPlayerCard.classList.add('playing');
+    playIcon.classList.add('hidden');
+    pauseIcon.classList.remove('hidden');
+    playerStatusText.textContent = 'Live Broadcast';
+    nowPlayingCard.classList.add('playing');
     renderStations();
   }
 
   function onPlayError(err) {
-    console.warn('Play error:', err);
-    playerStatusLabel.textContent = 'Retrying...';
+    console.warn('Playback notice:', err);
+    playerStatusText.textContent = 'Connecting...';
   }
 
   function togglePlay() {
     if (!currentStation) {
-      if (currentFilteredStations.length > 0) playStation(currentFilteredStations[0]);
+      const list = getFilteredStations();
+      if (list.length > 0) playStation(list[0]);
       return;
     }
 
     if (isPlaying) {
       audio.pause();
       isPlaying = false;
-      playSvg.classList.remove('hidden');
-      pauseSvg.classList.add('hidden');
-      statusDot.classList.remove('active');
-      playerStatusLabel.textContent = 'Paused';
-      heroPlayerCard.classList.remove('playing');
+      playIcon.classList.remove('hidden');
+      pauseIcon.classList.add('hidden');
+      playerStatusText.textContent = 'Paused';
+      nowPlayingCard.classList.remove('playing');
     } else {
       audio.play().then(onPlaySuccess);
     }
@@ -383,23 +378,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function playNext() {
-    if (currentFilteredStations.length === 0) return;
+    const list = getFilteredStations();
+    if (list.length === 0) return;
     let nextIdx = 0;
     if (currentStation) {
-      const idx = currentFilteredStations.findIndex(s => s.id === currentStation.id);
-      nextIdx = (idx + 1) % currentFilteredStations.length;
+      const idx = list.findIndex(s => s.id === currentStation.id);
+      nextIdx = (idx + 1) % list.length;
     }
-    playStation(currentFilteredStations[nextIdx]);
+    playStation(list[nextIdx]);
   }
 
   function playPrev() {
-    if (currentFilteredStations.length === 0) return;
+    const list = getFilteredStations();
+    if (list.length === 0) return;
     let prevIdx = 0;
     if (currentStation) {
-      const idx = currentFilteredStations.findIndex(s => s.id === currentStation.id);
-      prevIdx = (idx - 1 + currentFilteredStations.length) % currentFilteredStations.length;
+      const idx = list.findIndex(s => s.id === currentStation.id);
+      prevIdx = (idx - 1 + list.length) % list.length;
     }
-    playStation(currentFilteredStations[prevIdx]);
+    playStation(list[prevIdx]);
   }
 
   // 6. Favorites
@@ -410,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
       favorites.add(stationId);
     }
     localStorage.setItem('akashvani_favs', JSON.stringify(Array.from(favorites)));
-    updateCounts();
+    updateFavoritesCount();
     updateFavButton();
     renderStations();
   }
@@ -424,24 +421,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 7. Clipboard & M3U Export
-  function copyStreamUrl(station) {
-    const target = station || currentStation;
-    if (!target) {
+  function copyStreamUrl() {
+    if (!currentStation) {
       showToast('Select a station first');
       return;
     }
-    const url = target.stream_url || `${window.location.origin}/stream/${target.id}`;
+    const url = currentStation.stream_url;
     navigator.clipboard.writeText(url).then(() => {
-      showToast(`Copied stream: ${target.name}`);
+      showToast(`Copied stream link: ${currentStation.name}`);
     });
   }
 
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.remove('hidden');
-    setTimeout(() => {
-      toast.classList.add('hidden');
-    }, 2600);
+    setTimeout(() => toast.classList.add('hidden'), 2500);
   }
 
   function exportM3u() {
@@ -455,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'akashvani_radio_playlist.m3u';
+    a.download = 'akashvani_all_india_radio.m3u';
     a.click();
     URL.revokeObjectURL(url);
     showToast('Downloaded M3U Playlist');
@@ -466,12 +460,10 @@ document.addEventListener('DOMContentLoaded', () => {
   nextBtn.addEventListener('click', playNext);
   prevBtn.addEventListener('click', playPrev);
   downloadM3uBtn.addEventListener('click', exportM3u);
-
   favBtn.addEventListener('click', () => {
     if (currentStation) toggleFavorite(currentStation.id);
   });
-
-  copyStreamBtn.addEventListener('click', () => copyStreamUrl());
+  copyStreamBtn.addEventListener('click', copyStreamUrl);
 
   // Volume
   volumeSlider.addEventListener('input', (e) => {
@@ -484,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     volumeSlider.value = audio.muted ? 0 : (audio.volume || 1);
   });
 
-  // Search
+  // Search Input
   searchInput.addEventListener('input', () => {
     clearSearchBtn.classList.toggle('visible', searchInput.value.length > 0);
     renderStations();
@@ -496,41 +488,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderStations();
   });
 
-  resetFilterBtn.addEventListener('click', () => {
+  resetSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
+    clearSearchBtn.classList.remove('visible');
+    currentFilter = 'all';
     stateFilter.value = '';
-    langFilter.value = '';
-    activeLangChip = '';
-    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.lang === ''));
+    document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
     renderStations();
   });
 
   stateFilter.addEventListener('change', renderStations);
-  langFilter.addEventListener('change', () => {
-    activeLangChip = langFilter.value;
-    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.lang === activeLangChip));
-    renderStations();
-  });
 
-  // Language Quick Chips
-  languageChips.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    activeLangChip = chip.dataset.lang;
-    langFilter.value = activeLangChip;
+  // Quick Filter Pills
+  quickTags.addEventListener('click', (e) => {
+    const pill = e.target.closest('.pill');
+    if (!pill) return;
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    currentFilter = pill.dataset.filter;
     renderStations();
-  });
-
-  // Nav Tabs
-  navItems.forEach(item => {
-    item.addEventListener('click', () => {
-      navItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      activeTab = item.dataset.tab;
-      renderStations();
-    });
   });
 
   // Keyboard Shortcuts
@@ -563,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === infoModal) infoModal.classList.add('hidden');
   });
 
-  document.querySelectorAll('.copy-inline-btn').forEach(btn => {
+  document.querySelectorAll('.inline-copy-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.copy;
       const text = type === 'm3u' ? m3uFullUrl.textContent : activeStationDirectUrl.textContent;
@@ -571,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Start visualizer loop and load stations
+  // Initialize
   drawFallback();
   loadStations();
 });
