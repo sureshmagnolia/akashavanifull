@@ -106,6 +106,8 @@ class StreamHub extends EventEmitter {
 
     const ffmpegArgs = [
       '-loglevel', 'warning',
+      '-fflags', '+nobuffer+flush_packets',
+      '-flush_packets', '1',
       '-reconnect', '1',
       '-reconnect_at_eof', '1',
       '-reconnect_streamed', '1',
@@ -121,7 +123,7 @@ class StreamHub extends EventEmitter {
     ];
 
     const ffmpeg = spawn('ffmpeg', ffmpegArgs, {
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'ignore']
     });
 
     stream.ffmpeg = ffmpeg;

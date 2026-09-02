@@ -82,6 +82,8 @@ class StreamHub:
         cmd = [
             "ffmpeg",
             "-loglevel", "warning",
+            "-fflags", "+nobuffer+flush_packets",
+            "-flush_packets", "1",
             "-reconnect", "1",
             "-reconnect_at_eof", "1",
             "-reconnect_streamed", "1",
@@ -160,14 +162,16 @@ async def get_stations(category: str = None, language: str = None, state: str = 
     return {"total": len(results), "stations": results}
 
 
-# 2. Audio Stream: /stream/{station_id}
+# 2. Audio Stream: /stream/{station_id} and /stream/{station_id}.mp3
 @app.get("/stream/{station_id}")
+@app.get("/stream/{station_id}.mp3")
 async def stream_audio(station_id: str, request: Request):
-    station = stations_map.get(station_id)
+    clean_id = station_id.removesuffix(".mp3")
+    station = stations_map.get(clean_id)
     if not station:
         raise HTTPException(status_code=404, detail="Station not found")
 
-    stream_obj = hub.get_or_create_stream(station_id)
+    stream_obj = hub.get_or_create_stream(clean_id)
     if not stream_obj:
         raise HTTPException(status_code=500, detail="Could not initialize stream")
 

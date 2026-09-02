@@ -77,9 +77,9 @@ app.get('/api/stats', (req, res) => {
   res.json(hub.getStats());
 });
 
-// 3. Audio Streaming Endpoint: /stream/:id
-app.get('/stream/:id', (req, res) => {
-  const stationId = req.params.id;
+// 3. Audio Streaming Endpoint: /stream/:id and /stream/:id.mp3
+app.get(['/stream/:id', '/stream/:id.mp3'], (req, res) => {
+  const stationId = req.params.id.replace(/\.mp3$/i, '');
   const station = stationsMap.get(stationId);
 
   if (!station) {
@@ -96,6 +96,7 @@ app.get('/stream/:id', (req, res) => {
     'X-Audio-Bitrate': BITRATE,
     'X-Station-Name': encodeURIComponent(station.name)
   });
+  if (res.flushHeaders) res.flushHeaders();
 
   // Attach client to shared station multiplexer
   hub.addListener(station, res);
