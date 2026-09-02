@@ -1,3 +1,13 @@
+---
+title: Akashvani Radio Hub
+emoji: 📻
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 📻 Akashvani & Live Radio Hub
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)

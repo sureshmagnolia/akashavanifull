@@ -13,10 +13,10 @@ RUN npm install --production
 # Copy application files
 COPY . .
 
-# Expose HTTP port
-EXPOSE 8000
+# Expose HTTP port (7860 for Hugging Face, 8000 for Koyeb/Render)
+EXPOSE 7860 8000
 
-ENV PORT=8000
+ENV PORT=7860
 ENV NODE_ENV=production
 ENV BITRATE=96k
 
