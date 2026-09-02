@@ -7,26 +7,14 @@ Runs on 100% Free 2 vCPU / 16 GB RAM Gradio Space.
 import os
 import json
 import asyncio
-import subprocess
-from typing import Dict, Set
-from fastapi import FastAPI, Request, HTTPException
+from typing import Dict
+from fastapi import Request, HTTPException
 from fastapi.responses import StreamingResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import gradio as gr
 
-app = FastAPI(title="Akashvani Radio Hub")
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Load stations
+# Load stations database
 STATIONS_FILE = os.path.join(os.path.dirname(__file__), "stations.json")
 stations = []
 try:
@@ -55,7 +43,6 @@ class StreamHub:
             if not station:
                 return None
 
-            queue = asyncio.Queue(maxsize=100)
             listeners = set()
 
             stream_obj = {
@@ -122,7 +109,7 @@ class StreamHub:
                 if not chunk:
                     break
 
-                # Maintain rolling buffer
+                # Maintain rolling ring buffer
                 stream_obj["ring_buffer"].extend(chunk)
                 if len(stream_obj["ring_buffer"]) > 64 * 1024:
                     stream_obj["ring_buffer"] = stream_obj["ring_buffer"][-64 * 1024:]
@@ -140,6 +127,21 @@ class StreamHub:
 
 
 hub = StreamHub()
+
+# Create Gradio interface and get underlying FastAPI app
+with gr.Blocks(title="Akashvani Radio Hub") as demo:
+    gr.HTML('<iframe src="/web" style="width:100%; height:94vh; border:none; border-radius:8px;"></iframe>')
+
+app = demo.app
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # 1. API: List Stations
@@ -173,7 +175,7 @@ async def stream_audio(station_id: str, request: Request):
     stream_obj["listeners"].add(client_queue)
 
     async def audio_generator():
-        # Flush initial ring buffer for zero lag start
+        # Flush initial ring buffer for instant zero-lag start
         if stream_obj["ring_buffer"]:
             yield bytes(stream_obj["ring_buffer"])
 
@@ -216,9 +218,7 @@ async def get_m3u(request: Request):
 # 4. Mount Static Web Player
 public_dir = os.path.join(os.path.dirname(__file__), "public")
 if os.path.exists(public_dir):
-    app.mount("/static", StaticFiles(directory=public_dir), name="static")
-
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/web", response_class=HTMLResponse)
     async def serve_index():
         with open(os.path.join(public_dir, "index.html"), "r", encoding="utf-8") as f:
             return f.read()
@@ -233,14 +233,7 @@ if os.path.exists(public_dir):
         with open(os.path.join(public_dir, "app.js"), "r", encoding="utf-8") as f:
             return Response(content=f.read(), media_type="application/javascript")
 
-
-# 5. Gradio Mount (so Hugging Face detects the Gradio SDK)
-with gr.Blocks(title="Akashvani Radio Hub") as demo:
-    gr.HTML('<iframe src="/" style="width:100%; height:92vh; border:none;"></iframe>')
-
-app = gr.mount_gradio_app(app, demo, path="/gradio")
-
+# Launch Gradio Demo
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    demo.launch(server_name="0.0.0.0", server_port=port)
