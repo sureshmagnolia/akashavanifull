@@ -1336,7 +1336,7 @@
     "state": "MADHYA PRADESH",
     "language": "Hindi",
     "stream_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio233/playlist.m3u8",
-    "epg_url": "",
+    "epg_url": "#",
     "epg_id": "299"
   },
   {
@@ -2656,7 +2656,7 @@
     "state": "WEST BENGAL",
     "language": "Bengali",
     "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio137/hlspbaudio137_Auto.m3u8",
-    "epg_url": "",
+    "epg_url": "4",
     "epg_id": "283"
   },
   {
