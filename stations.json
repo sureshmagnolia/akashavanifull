@@ -5,7 +5,7 @@
     "category": "air",
     "state": "NATIONAL",
     "language": "Hindi, English",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio002/hlspbaudio002_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi01/air001_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/128",
     "epg_id": "5"
   },
@@ -25,7 +25,7 @@
     "category": "air",
     "state": "NATIONAL",
     "language": "Hindi, Tamil, Telugu, Malayalam",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudioragam/hlspbaudioragam_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airbang04/air036_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/349",
     "epg_id": "4"
   },
@@ -35,7 +35,7 @@
     "category": "air",
     "state": "DELHI",
     "language": "Hindi",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio005/hlspbaudio005_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi03/air003_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/244",
     "epg_id": "2"
   },
@@ -45,7 +45,7 @@
     "category": "air",
     "state": "DELHI",
     "language": "Hindi",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio004/hlspbaudio004_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi02/air002_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/243",
     "epg_id": "3"
   },
@@ -55,7 +55,7 @@
     "category": "air",
     "state": "DELHI",
     "language": "Hindi",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio006/hlspbaudio006_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi06/air006_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/247",
     "epg_id": "40"
   },
@@ -65,7 +65,7 @@
     "category": "air",
     "state": "DELHI",
     "language": "Hindi",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio238/hlspbaudio238_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi04/air004_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/334",
     "epg_id": "41"
   },
@@ -75,7 +75,7 @@
     "category": "air",
     "state": "DELHI",
     "language": "Hindi",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio003/hlspbaudio003_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airdelhi05/air005_Auto.m3u8",
     "epg_url": "",
     "epg_id": "296"
   },
@@ -875,7 +875,7 @@
     "category": "air",
     "state": "KARNATAKA",
     "language": "Kannada, Hindi, English",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio030/hlspbaudio030_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airbang01/air033_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/249",
     "epg_id": "115"
   },
@@ -895,7 +895,7 @@
     "category": "air",
     "state": "KARNATAKA",
     "language": "Kannada, Hindi, English",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio027/hlspbaudio027_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airbang02/air034_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/355",
     "epg_id": "117"
   },
@@ -905,7 +905,7 @@
     "category": "air",
     "state": "KARNATAKA",
     "language": "Kannada, Hindi, English",
-    "stream_url": "https://airhlspush.pc.cdn.bitgravity.com/httppush/hlspbaudio026/hlspbaudio026_Auto.m3u8",
+    "stream_url": "https://d3r9rhourdc02u.cloudfront.net/assets/radio/airbang03/air035_Auto.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/290",
     "epg_id": "118"
   },
