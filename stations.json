@@ -1835,7 +1835,7 @@
     "category": "air",
     "state": "ODISHA",
     "language": "Odia, Hindi",
-    "stream_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio112/playlist.m3u8",
+    "stream_url": "https://radio.wavespb.com/live/d59a448c8fa48c21/d59a448c8fa48c21.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/327",
     "epg_id": "208"
   },
@@ -2265,7 +2265,7 @@
     "category": "air",
     "state": "TAMIL NADU",
     "language": "Tamil, English",
-    "stream_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio051/playlist.m3u8",
+    "stream_url": "https://radio.wavespb.com/live/eef8fc0421c2cc48/eef8fc0421c2cc48.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/256",
     "epg_id": "246"
   },
@@ -2595,7 +2595,7 @@
     "category": "air",
     "state": "UTTAR PRADESH",
     "language": "Hindi",
-    "stream_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio235/playlist.m3u8",
+    "stream_url": "https://radio.wavespb.com/live/6a6133146118961c/6a6133146118961c.m3u8",
     "epg_url": "https://cuesheets.prasarbharati.org/viewsheet/271",
     "epg_id": "277"
   },
